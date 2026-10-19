@@ -9,14 +9,42 @@ Production-grade **Graph Engineering** for the **GitHub Copilot CLI Agent Harnes
 
 `copilot-workflow` replaces ad-hoc single-agent loops and brittle sequential chains with typed **Diamond**, **Double-Diamond**, and **Cyclic Discovery Loop** graphs—combining parallel worker fan-out, zero-token plain-code deduplication, arithmetic fan-in count guards, **Fresh-Context 3-Skeptic Majority-Vote Verification**, layered fan-in (`chunk(40)`), durable SQLite-journaled checkpoints (`ctx.step` / `ctx.pause`), and unbypassable **System-1 + System-2** harness hooks.
 
+![Graph Engineering Architecture for GitHub Copilot Agent Harness](docs/assets/architecture-schematic.svg)
+
+> **Explore the Architecture:** [Interactive Archify Viewer (`docs/architecture.html`)](./docs/architecture.html) (animated trace motion, Guided Story chapters, Light/Dark themes, route probe) · [Dual-Theme Vector (`docs/assets/architecture-schematic.svg`)](./docs/assets/architecture-schematic.svg) · [High-DPI Raster (`docs/assets/architecture-schematic.png`)](./docs/assets/architecture-schematic.png)
+
+---
+
+## Why Use This? (6 Clear Advantages in Plain English)
+
+1. **4x Faster on Big Tasks (No "Fake Waiting"):** Instead of doing 5 independent jobs one by one in a single slow line, it runs them all at the same time.
+2. **Zero-Token Cleanup (Code Does the Sorting, Not the AI):** Deduplicating results, checking for missing answers, and batching happen in plain JavaScript (`0` tokens, `0` cost) instead of paying an LLM to copy-paste text.
+3. **No Self-Grading (Fresh Skeptics Catch Hallucinations):** The agent that wrote an answer is never allowed to grade its own homework. Three separate, fresh-context "skeptic" agents check *Is it accurate? Is it current? Is the source real?* and vote (`>=2/3` required to keep).
+4. **Never Silently Drops a Failed Step:** If 1 out of 10 parallel workers times out or fails, a normal agent quietly writes a "complete" report over 90% of the data. Here, a hard Count Guard flags or halts on missing pieces.
+5. **Pause & Resume Without Paying Twice:** At human approval gates (`ctx.pause`), progress is saved to SQLite. When you approve and resume, completed steps replay instantly from disk (`0` tokens re-spent).
+6. **Locked Rules the AI Cannot Cheat (`Frozen Rules`):** Harness hooks block coding agents from editing your test files or benchmarks just to make a failing test pass, and stack cleanly with `el-jev` (`el-mds`) fast turn routing.
+
+---
+
+## Do I Need the `--experimental` Flag?
+
+If `"experimental": true` is set in `~/.copilot/settings.json` (already enabled in your setup), you **never** need to pass `--experimental` on the command line.
+
+| Execution Mode / Scenario | Requires `"experimental": true`? | Do You Need `--experimental` on the CLI? | How It Runs |
+|---|---|---|---|
+| **Interactive CLI with `"experimental": true` in `~/.copilot/settings.json`** *(Recommended)* | Yes (enabled once in config) | **No** — never needed on the command line | Start `copilot` normally and run `/diamond-workflow ...` |
+| **Mode A: `diamond-engine` SDK Workflow** (`run_dynamic_workflow` / `defineWorkflow`) | **Yes** (`experimental: true`) | Only if `"experimental": true` is **not** in `~/.copilot/settings.json` | Uses SDK `ctx.parallel`, `ctx.step`, `ctx.pipeline`, and `ctx.pause` |
+| **Mode B: SQLite `todos` + Parallel `task` Waves** (`/diamond-workflow`) | **No** — works even if `experimental` is `false` | **No** | Uses built-in session SQLite `todos` + `todo_deps` and parallel `task(mode="sync")` waves |
+
 ---
 
 ## Navigation & Visual Architecture Artifacts
 
 | Artifact | Path | Description |
 |---|---|---|
+| **Embedded Archify Schematics (SVG & PNG)** | [`docs/assets/architecture-schematic.svg`](./docs/assets/architecture-schematic.svg) · [`architecture-schematic.png`](./docs/assets/architecture-schematic.png) | Canonical Archify dual-theme vector schematic and high-DPI PNG rendered directly inside GitHub's `README.md` |
 | **Interactive Architecture Diagram (Archify HTML/SVG)** | [`docs/architecture.html`](./docs/architecture.html) | Standalone interactive SVG viewer with Light/Dark themes, Guided Story walkthroughs, animated trace motion, and PNG/SVG/WebP export |
-| **Deep Architecture Specification** | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | 4-plane system architecture, Mermaid sequence & state-machine diagrams, node schemas, and 10 failure-mode mitigations |
+| **Deep Architecture Specification** | [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) | 4-plane system architecture, sequence & state-machine specifications, node schemas, and 10 failure-mode mitigations |
 | **Primary Research Report (Markdown)** | [`docs/research/how-to-imbibe-and-create-agents-or-workflows-based.md`](./docs/research/how-to-imbibe-and-create-agents-or-workflows-based.md) | Comprehensive technical deconstruction of Anatoli Kopadze's Graph Engineering, academic literature (`arXiv:2608.21156`, `arXiv:2607.27578`), and GitHub Copilot SDK internals |
 | **Primary Research Brief (HTML)** | [`docs/research/how-to-imbibe-and-create-agents-or-workflows-based.html`](./docs/research/how-to-imbibe-and-create-agents-or-workflows-based.html) | Styled interactive HTML brief of the research synthesis |
 | **Control Plane Skill & Graph Specs** | [`skills/diamond-workflow/SKILL.md`](./skills/diamond-workflow/SKILL.md) · [`specs/graph-specs.md`](./skills/diamond-workflow/specs/graph-specs.md) | `/diamond-workflow` skill trigger, Fake-Edge Test pre-flight, and the 6 coalesced `▸ GRAPH SPEC` definitions |
@@ -29,19 +57,21 @@ Production-grade **Graph Engineering** for the **GitHub Copilot CLI Agent Harnes
 
 In [*"Graph Engineering explained: what it is, when to use it and when not to"*](https://x.com/AnatoliKopadze/status/2080668775796314331) (July 24, 2026), Anatoli Kopadze formalizes the architectural transition from **single-agent loops** (`DISCOVER -> PLAN -> EXECUTE -> VERIFY -> ITERATE`) to **graphs of loops**—explicitly wired networks where bounded worker nodes execute in parallel, plain JavaScript reduces and deduplicates outputs at zero token cost, isolated fresh-context verifiers challenge every claim against ground-truth anchors, and a final synthesizer produces decision-grade output.
 
-```mermaid
-graph LR
-    G["1. GOAL<br/>Define objective & scope"] --> S["2. SPLIT (Fake-Edge Test)<br/>Break into orthogonal units"]
-    S --> W1["Worker 1<br/>(Slice 1)<br/>JSON Schema"]
-    S --> W2["Worker 2<br/>(Slice 2)<br/>JSON Schema"]
-    S --> W3["Worker N<br/>(Slice N)<br/>JSON Schema"]
-    W1 --> R["3. REDUCE (Plain Code)<br/>Count Guard + Dedupe<br/>Zero LLM Tokens"]
-    W2 --> R
-    W3 --> R
-    R --> V["4. VERIFY (Fresh Context)<br/>3 Parallel Skeptics:<br/>Correct? Current? Real Source?"]
-    A[("ANCHORS & FROZEN RULES<br/>Frozen tests, primary citations,<br/>unbypassable hooks")] -.->|Ground truth| V
-    V -->|Survivors >= 2/3 vote| M["5. MERGE & HUMAN GATE<br/>ctx.pause + Layered Fan-In"]
-    M --> F["6. SYNTHESIZE<br/>Ranked Decision Report"]
+```text
+                                  ┌──────────────────────┐
+                                  │  Worker 1 (Slice 1)  │──┐
+                                  │  Enforced JSON Schema│  │
+┌──────────────┐   ┌───────────┐  ├──────────────────────┤  │   ┌───────────────────────┐   ┌─────────────────────────┐   ┌────────────────────┐
+│   1. GOAL    │──>│ 2. SPLIT  │─>│  Worker 2 (Slice 2)  │──┼──>│ 3. REDUCE (Plain JS)  │──>│ 4. VERIFY (Fresh Ctx)   │──>│ 5. MERGE + PAUSE   │──> 6. SYNTHESIZE
+│ Scope & Task │   │ Fake-Edge │  │  Enforced JSON Schema│  │   │ Count Guard + Dedupe  │   │ 3 Parallel Skeptics     │   │ ctx.pause +        │    Ranked Report
+└──────────────┘   │   Test    │  ├──────────────────────┤  │   │ (0 LLM Tokens Spent)  │   │ (>= 2/3 Majority Vote)  │   │ Layered chunk(40)  │
+                   └───────────┘  │  Worker N (Slice N)  │──┘   └───────────────────────┘   └─────────────────────────┘   └────────────────────┘
+                                  │  Enforced JSON Schema│                                                ▲
+                                  └──────────────────────┘                                                │
+                                                                                    ┌─────────────────────┴─────────────────────┐
+                                                                                    │ ANCHORS & FROZEN RULES (Unbypassable)     │
+                                                                                    │ Frozen tests, primary citations, SDK hooks│
+                                                                                    └───────────────────────────────────────────┘
 ```
 
 ### 1.1 Node Contracts (`IN` / `OUT` JSON Schemas)
@@ -113,71 +143,19 @@ GitHub Copilot CLI provides two complementary execution modes that `copilot-work
 
 `copilot-workflow` is engineered as a 4-layer stack where the declarative skill (`SKILL.md` + `specs/graph-specs.md`), the persistent SDK workflow engine (`diamond-engine`), and fast System-1 routing (`el-mds` / `el-jev`) compose with **zero tool collisions and zero hook interference**.
 
-- **Interactive Visual Architecture:** Open [`docs/architecture.html`](./docs/architecture.html) in any browser.
+![Graph Engineering Architecture for GitHub Copilot Agent Harness](docs/assets/architecture-schematic.png)
+
+- **Interactive Visual Architecture (Trace Motion & Guided Walkthrough):** Open [`docs/architecture.html`](./docs/architecture.html) in any browser to inspect node contracts, step through the 4 Guided Story views (`Single Diamond Spine`, `Layer 2: System-1 & Hooks`, `Double-Diamond & Loop`, `Layer 4: State & Vault`), or run live Route Probes.
+- **Standalone Schematics:** [`docs/assets/architecture-schematic.svg`](./docs/assets/architecture-schematic.svg) (dual-theme vector) · [`docs/assets/architecture-schematic.png`](./docs/assets/architecture-schematic.png) (high-DPI raster).
 - **Full Architectural Specification:** Read [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 - **Deep Research Foundation:** Read [`docs/research/how-to-imbibe-and-create-agents-or-workflows-based.md`](./docs/research/how-to-imbibe-and-create-agents-or-workflows-based.md).
 
-```mermaid
-flowchart TB
-  subgraph L1["Layer 1: Control Plane (skills/diamond-workflow/SKILL.md + specs/graph-specs.md)"]
-    Trigger["/diamond-workflow Trigger"]
-    FakeEdge["Fake-Edge Test\n(Direct-Tool | Serial | Orthogonality Gates)"]
-    SpecSel["Spec Selector\nroute-audit | research-desk | content-brief\ngtm-kit | refactor-sweep | discovery-loop"]
-    Router["Mode Router\nMode A (SDK diamond-engine) vs. Mode B (SQLite Waves)"]
-    Trigger --> FakeEdge --> SpecSel --> Router
-  end
-
-  subgraph L2["Layer 2: System-1 Gate & Harness Hooks"]
-    PromptGate["onUserPromptSubmitted\nel-mds 127.0.0.1:8787/v1/gate"]
-    PreToolGate["onPreToolUse (100% Disjoint Partitioning)\n1. el-mds: block task/workflow on fast_direct\n2. diamond-workflow: freeze tests/evals/hooks\n3. sanitize.py: scan git commit/push"]
-    SubagentHooks["onSubagentStart / onSubagentStop\nNode Contract Anchor + Citation Gate"]
-  end
-
-  subgraph L3["Layer 3: Execution Plane (.github/extensions/diamond-workflow/workflow.mjs)"]
-    subgraph T1["Topology 1: Single Diamond"]
-      FanOut["ctx.parallel Fan-Out\nunique label + FINDING_SCHEMA"]
-      Reduce["ctx.step('reduce-w1-v1')\nPlain-Code Dedupe + Fan-In Count Guard\n+ Optional el-jev /v1/decide Triage"]
-      Verifier["ctx.pipeline + ctx.parallel\nFresh-Context 3-Skeptic Verifier\n(correct, current, real_source -> >=2/3 Vote)"]
-      HumanGate["Optional ctx.pause\n('approve-synthesis-v1')"]
-      LayeredFanIn["Layered Fan-In (chunk(40))\n-> Final Synthesis (REPORT_SCHEMA)"]
-      FanOut --> Reduce --> Verifier --> HumanGate --> LayeredFanIn
-    end
-
-    subgraph T2["Topology 2: Double-Diamond (gtm-kit)"]
-      W1["Wave 1: Parallel Research"]
-      PosDoc["ctx.step('positioning-doc-v1')"]
-      MidPause["Mandatory ctx.pause('approve-positioning-v1')"]
-      W2["Wave 2: Parallel Asset Writers"]
-      AlignVer["Alignment Verifier"]
-      W1 --> PosDoc --> MidPause --> W2 --> AlignVer
-    end
-
-    subgraph T3["Topology 3: Cyclic Discovery Loop (discovery-loop)"]
-      Finder["Parallel Round Finders\n(finder:r{round}:{i})"]
-      SeenMap["Cumulative seenKeys Set Dedupe"]
-      LoopVer["Fresh-Context Verifier"]
-      ConvStop["Convergence Stop\n(emptyRounds >= 2 or maxRounds)"]
-      Finder --> SeenMap --> LoopVer --> ConvStop
-      ConvStop -. "new findings (emptyRounds < 2)" .-> Finder
-    end
-  end
-
-  subgraph L4["Layer 4: Durable State & Knowledge Plane"]
-    Journal[("Workflow SQLite Journal\nctx.step / ctx.pause")]
-    TodosDB[("Session SQLite\ntodos + todo_deps (Mode B)")]
-  end
-
-  PromptGate --> Trigger
-  Router -- "Mode A: diamond" --> FanOut
-  Router -- "Mode A: double-diamond" --> W1
-  Router -- "Mode A: cyclic-loop" --> Finder
-  Router -- "Mode B: SQLite Waves" --> TodosDB
-  PreToolGate -. "Guards tool calls" .-> Router
-  SubagentHooks -. "Anchors & citations" .-> FanOut
-  SubagentHooks -. "Fresh context" .-> Verifier
-  Reduce <--> Journal
-  MidPause <--> Journal
-```
+| Architectural Layer | Core Components | Responsibility |
+|---|---|---|
+| **Layer 1: Control Plane** (`skills/diamond-workflow/SKILL.md` + `specs/graph-specs.md`) | `/diamond-workflow` Trigger $\rightarrow$ **Fake-Edge Test** $\rightarrow$ **Mode Router** | Runs the 3-gate Fake-Edge Test, selects one of the 6 coalesced `specId` definitions, and routes to **Mode A** (`diamond-engine` SDK workflow) or **Mode B** (session SQLite `todos` + parallel `task` waves). |
+| **Layer 2: System-1 Gate & Harness Hooks** | `el-mds / el-jev` (`:8787/v1/gate`) · `createDiamondHooks()` · `sanitize.py` | Pre-prompt System-1 turn triage (`fast_direct` vs. `deep_system2`), 100% disjoint `onPreToolUse` Frozen Rules protection (`COPILOT_FREEZE_TESTS=1`), subagent citation gates, and git secret scanning. |
+| **Layer 3: Execution Plane** (`.github/extensions/diamond-workflow/workflow.mjs`) | **Diamond Fan-Out** (`ctx.parallel`) $\rightarrow$ **Code Reduce** (`reduce-w1-v1`) $\rightarrow$ **3-Skeptic Vote** (`ctx.pipeline >= 2/3`) $\rightarrow$ **Layered Fan-In** (`chunk(40)` + `ctx.pause`) | Executes **Single Diamond**, **Double-Diamond** (`gtm-kit` with mid-graph `approve-positioning-v1` pause), and **Cyclic Discovery Loop** (`discovery-loop` with cumulative `seenKeys` Set and 2-empty-round convergence). |
+| **Layer 4: Durable State & Knowledge Graph Plane** | **Session SQLite** (`todos` + `todo_deps`) · **Workflow Journal** (`ctx.step` / `ctx.pause`) · **Vault MCP Graph** (`hops=1`) | Persists workflow checkpoints to SQLite for 0-token replay on resume, tracks Mode B wave readiness, and bounds progressive knowledge retrieval to `2,000` chars. |
 
 ### Multi-Extension Hook Composition & System-1 / System-2 Stacking
 
@@ -287,15 +265,15 @@ Author and run a dynamic workflow for this task using `dynamic_workflows_manage`
 
 ### 4.4 Headless CLI Execution
 
-You can also execute `diamond-engine` directly from a terminal or CI/CD pipeline using GitHub Copilot CLI's headless workflow runner:
+You can also execute `diamond-engine` directly from a terminal or CI/CD pipeline using GitHub Copilot CLI's headless workflow runner (omit `--experimental` if `"experimental": true` is already set in `~/.copilot/settings.json`):
 
 ```bash
 # Run a Single-Diamond route audit headlessly
-copilot --experimental workflow run diamond-engine \
+copilot workflow run diamond-engine \
   --args '{"specId":"route-audit","goal":"Audit API routes for missing auth checks","units":["src/routes/auth.js","src/routes/users.js","src/routes/billing.js"],"pauseAtGate":false}'
 
 # Run a Cyclic Discovery Loop headlessly with a 3-round cap
-copilot --experimental workflow run diamond-engine \
+copilot workflow run diamond-engine \
   --args '{"specId":"discovery-loop","goal":"Hunt concurrency and state race conditions","maxRounds":3}'
 ```
 
@@ -383,9 +361,12 @@ copilot-workflow/
 │           └── specs/
 │               └── graph-specs.md     # Coalesced 6-spec catalog
 ├── docs/
-│   ├── ARCHITECTURE.md                # Full 4-layer architecture & Mermaid diagrams
+│   ├── ARCHITECTURE.md                # Full 4-layer architecture & specifications
 │   ├── architecture.html              # Interactive standalone SVG viewer (Archify)
 │   ├── architecture.architecture.json # Archify architecture graph model
+│   ├── assets/
+│   │   ├── architecture-schematic.svg # Dual-theme Archify SVG schematic for README
+│   │   └── architecture-schematic.png # High-DPI Archify PNG schematic for README
 │   └── research/
 │       ├── how-to-imbibe-and-create-agents-or-workflows-based.md
 │       └── how-to-imbibe-and-create-agents-or-workflows-based.html

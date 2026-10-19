@@ -1,9 +1,9 @@
 # Graph Engineering Evaluation & Benchmark Scorecard
 
-- **Generated**: `2026-10-19T17:33:12.768Z`
+- **Generated**: `2026-10-19T17:52:27.683Z`
 - **Total Evals**: `7/7` passed (`100%`)
 - **Total Assertions**: `33/33` green (`100%`)
-- **Suite Execution Time**: `278.77 ms`
+- **Suite Execution Time**: `290.64 ms`
 
 ## Executive Scorecard
 
@@ -33,7 +33,7 @@
 | 12 total work units executed in both topologies | PASS | `12/12 units` | `12/12 units` |
 | Critical-path depth reduced from 12 (sequential chain) to 3 (Diamond fan-out) | PASS | `seq=12, diamond=3` | `seq=12, diamond=3` |
 | Simulated wall-clock latency reduced 4.0x (12,000ms -> 3,000ms, 75.0% reduction) | PASS | `12000ms -> 3000ms (4x, -75%)` | `12000ms -> 3000ms (4x, -75%)` |
-| Real async Promise.all execution faster than sequential await loop | PASS | `parallel=47.16ms < sequential=196.31ms (4.16x)` | `parallel < sequential` |
+| Real async Promise.all execution faster than sequential await loop | PASS | `parallel=47.87ms < sequential=189.18ms (3.95x)` | `parallel < sequential` |
 | Deterministic output ordering preserved across parallel fan-in | PASS | `outputsIdentical=true` | `outputsIdentical=true` |
 
 #### Key Metrics (JSON)
@@ -49,9 +49,9 @@
   "diamondCriticalPathDepth": 3,
   "speedupFactor": 4,
   "latencyReductionPct": 75,
-  "sequentialRealWallClockMs": 196.31,
-  "diamondRealWallClockMs": 47.16,
-  "realSpeedupFactor": 4.16
+  "sequentialRealWallClockMs": 189.18,
+  "diamondRealWallClockMs": 47.87,
+  "realSpeedupFactor": 3.95
 }
 ```
 

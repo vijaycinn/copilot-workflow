@@ -1,7 +1,7 @@
 {
   "suite": "copilot-workflow-graph-engineering-evals",
   "version": "1.0.0",
-  "generatedAt": "2026-10-19T17:33:12.768Z",
+  "generatedAt": "2026-10-19T17:52:27.683Z",
   "summary": {
     "totalEvals": 7,
     "passedEvals": 7,
@@ -11,7 +11,7 @@
     "passedAssertions": 33,
     "failedAssertions": 0,
     "assertionPassRatePct": 100,
-    "durationMs": 278.77,
+    "durationMs": 290.64,
     "allGreen": true
   },
   "headlineMetrics": {
@@ -96,7 +96,7 @@
         {
           "name": "Real async Promise.all execution faster than sequential await loop",
           "passed": true,
-          "actual": "parallel=47.16ms < sequential=196.31ms (4.16x)",
+          "actual": "parallel=47.87ms < sequential=189.18ms (3.95x)",
           "expected": "parallel < sequential"
         },
         {
@@ -116,16 +116,16 @@
         "diamondCriticalPathDepth": 3,
         "speedupFactor": 4,
         "latencyReductionPct": 75,
-        "sequentialRealWallClockMs": 196.31,
-        "diamondRealWallClockMs": 47.16,
-        "realSpeedupFactor": 4.16
+        "sequentialRealWallClockMs": 189.18,
+        "diamondRealWallClockMs": 47.87,
+        "realSpeedupFactor": 3.95
       },
       "headlineComparison": {
         "baseline": "12000 ms (depth 12, sequential fake edges)",
         "graphEngineering": "3000 ms (depth 3, Diamond fan-out)",
         "improvement": "4.00x speedup (-75% latency)"
       },
-      "durationMs": 244.01
+      "durationMs": 237.89
     },
     {
       "id": "fan-in-count-guard",
@@ -233,7 +233,7 @@
         "graphEngineering": "100.0% detection & quorum enforcement (flags partial >=50%, fails closed <ceil(N/2))",
         "improvement": "+100.0 percentage points silent-failure prevention"
       },
-      "durationMs": 1.18
+      "durationMs": 1.96
     },
     {
       "id": "three-skeptic-verifier",
@@ -311,7 +311,7 @@
         "graphEngineering": "Precision 100%, F1 100%, FP Filter 100% (3-Skeptic Majority Vote)",
         "improvement": "+80.0% false-positive filtering, +28.6% F1"
       },
-      "durationMs": 0.93
+      "durationMs": 1.86
     },
     {
       "id": "context-collapse-layered-fanin",
@@ -359,7 +359,7 @@
         "graphEngineering": "17,600 chars / 4,400 tokens (chunk(40) layered fan-in)",
         "improvement": "-78% peak synthesizer prompt size (100% citation retention)"
       },
-      "durationMs": 27.76
+      "durationMs": 41.27
     },
     {
       "id": "durable-checkpoint-replay",
@@ -408,7 +408,7 @@
         "graphEngineering": "0 Wave 1 agents re-run / 0 tokens wasted on resume (ctx.step + ctx.pause journal)",
         "improvement": "100.0% token & subagent savings on replayed stages (32,000 tokens saved)"
       },
-      "durationMs": 1.85
+      "durationMs": 2.43
     },
     {
       "id": "cyclic-loop-convergence",
@@ -489,7 +489,7 @@
         "graphEngineering": "Terminates at Round 4 with 8/8 unique bugs & 0 duplicates (2-zero-round convergence)",
         "improvement": "50.0% round budget saved, 100.0% duplicate elimination"
       },
-      "durationMs": 0.67
+      "durationMs": 1.07
     },
     {
       "id": "hook-anchor-and-el-mds-stacking",
@@ -626,7 +626,7 @@
         "graphEngineering": "100% frozen-path block, 100% src/* allow, 100% el-mds abstain, 100% uncited research block",
         "improvement": "Deterministic invariant enforcement outside LLM context window"
       },
-      "durationMs": 2.31
+      "durationMs": 4.07
     }
   ]
 }
