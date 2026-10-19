@@ -1,0 +1,632 @@
+{
+  "suite": "copilot-workflow-graph-engineering-evals",
+  "version": "1.0.0",
+  "generatedAt": "2026-10-19T17:33:12.768Z",
+  "summary": {
+    "totalEvals": 7,
+    "passedEvals": 7,
+    "failedEvals": 0,
+    "evalPassRatePct": 100,
+    "totalAssertions": 33,
+    "passedAssertions": 33,
+    "failedAssertions": 0,
+    "assertionPassRatePct": 100,
+    "durationMs": 278.77,
+    "allGreen": true
+  },
+  "headlineMetrics": {
+    "eval1_fakeEdgeSpeedup": {
+      "sequentialLatencyMs": 12000,
+      "diamondLatencyMs": 3000,
+      "sequentialCriticalPathDepth": 12,
+      "diamondCriticalPathDepth": 3,
+      "speedupFactor": 4,
+      "latencyReductionPct": 75
+    },
+    "eval2_fanInCountGuard": {
+      "scenariosTested": 5,
+      "guardedSilentFailurePreventionPct": 100,
+      "naiveSilentFailurePreventionPct": 0
+    },
+    "eval3_threeSkepticVerifier": {
+      "datasetSize": 20,
+      "precisionPct": 100,
+      "recallPct": 100,
+      "f1Pct": 100,
+      "falsePositiveFilteringRatePct": 100,
+      "selfGradingPrecisionPct": 55.6,
+      "selfGradingF1Pct": 71.4,
+      "selfGradingFalsePositiveFilteringRatePct": 20
+    },
+    "eval4_contextCollapseLayeredFanIn": {
+      "totalClaims": 160,
+      "flatPeakPromptChars": 80000,
+      "flatPeakPromptTokens": 20000,
+      "layeredPeakPromptChars": 17600,
+      "layeredPeakPromptTokens": 4400,
+      "peakContextReductionPct": 78
+    },
+    "eval5_durableCheckpointReplay": {
+      "pauseGate": "approve-positioning-v1",
+      "wave1SubagentsInitial": 9,
+      "wave1SubagentsReRunOnResume": 0,
+      "replayedStageTokenSavingsPct": 100,
+      "tokensSavedOnResume": 32000
+    },
+    "eval6_cyclicLoopConvergence": {
+      "roundsExecuted": 4,
+      "maxRoundsConfigured": 8,
+      "uniqueIssuesFound": 8,
+      "duplicatesFiltered": 5,
+      "deduplicationAccuracyPct": 100,
+      "terminatedBy": "CONVERGENCE_2_ZERO_ROUNDS"
+    },
+    "eval7_hookAnchorAndElMdsStacking": {
+      "totalScenarios": 12,
+      "frozenPathBlockRatePct": 100,
+      "srcImplementationAllowRatePct": 100,
+      "elMdsAbstainRatePct": 100,
+      "uncitedResearchBlockRatePct": 100
+    }
+  },
+  "evals": [
+    {
+      "id": "fake-edge-speedup",
+      "title": "Eval 1: Sequential Chain vs. Diamond Parallel Fan-Out",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "12 total work units executed in both topologies",
+          "passed": true,
+          "actual": "12/12 units",
+          "expected": "12/12 units"
+        },
+        {
+          "name": "Critical-path depth reduced from 12 (sequential chain) to 3 (Diamond fan-out)",
+          "passed": true,
+          "actual": "seq=12, diamond=3",
+          "expected": "seq=12, diamond=3"
+        },
+        {
+          "name": "Simulated wall-clock latency reduced 4.0x (12,000ms -> 3,000ms, 75.0% reduction)",
+          "passed": true,
+          "actual": "12000ms -> 3000ms (4x, -75%)",
+          "expected": "12000ms -> 3000ms (4x, -75%)"
+        },
+        {
+          "name": "Real async Promise.all execution faster than sequential await loop",
+          "passed": true,
+          "actual": "parallel=47.16ms < sequential=196.31ms (4.16x)",
+          "expected": "parallel < sequential"
+        },
+        {
+          "name": "Deterministic output ordering preserved across parallel fan-in",
+          "passed": true,
+          "actual": "outputsIdentical=true",
+          "expected": "outputsIdentical=true"
+        }
+      ],
+      "metrics": {
+        "totalUnits": 12,
+        "trueDependencyLayers": 3,
+        "sequentialSimulatedLatencyMs": 12000,
+        "diamondSimulatedLatencyMs": 3000,
+        "diamond1101SimulatedLatencyMs": 3000,
+        "sequentialCriticalPathDepth": 12,
+        "diamondCriticalPathDepth": 3,
+        "speedupFactor": 4,
+        "latencyReductionPct": 75,
+        "sequentialRealWallClockMs": 196.31,
+        "diamondRealWallClockMs": 47.16,
+        "realSpeedupFactor": 4.16
+      },
+      "headlineComparison": {
+        "baseline": "12000 ms (depth 12, sequential fake edges)",
+        "graphEngineering": "3000 ms (depth 3, Diamond fan-out)",
+        "improvement": "4.00x speedup (-75% latency)"
+      },
+      "durationMs": 244.01
+    },
+    {
+      "id": "fan-in-count-guard",
+      "title": "Eval 2: Silent Node Failure Detection & Quorum Guard",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "0% failure passes cleanly with missingUnits=0 and degraded=false",
+          "passed": true,
+          "actual": "status=OK_COMPLETE, missingUnits=0",
+          "expected": "status=OK_COMPLETE, missingUnits=0"
+        },
+        {
+          "name": "20% failure passes quorum (8/10 >= 5) and flags missingUnits=2 in metadata",
+          "passed": true,
+          "actual": "status=DEGRADED_PARTIAL, missingUnits=2",
+          "expected": "status=DEGRADED_PARTIAL, missingUnits=2"
+        },
+        {
+          "name": "50% failure at boundary (5/10 == ceil(10/2)) passes quorum with missingUnits=5 warning",
+          "passed": true,
+          "actual": "status=DEGRADED_PARTIAL, valid=5/10, missing=5",
+          "expected": "status=DEGRADED_PARTIAL, valid=5/10, missing=5"
+        },
+        {
+          "name": "60% failure (4/10 < 5) breaches quorum and fails closed before synthesis",
+          "passed": true,
+          "actual": "status=FAILED_QUORUM, aborted=true",
+          "expected": "status=FAILED_QUORUM, aborted=true"
+        },
+        {
+          "name": "100% failure (0/10 < 5) breaches quorum and fails closed before synthesis",
+          "passed": true,
+          "actual": "status=FAILED_QUORUM, aborted=true",
+          "expected": "status=FAILED_QUORUM, aborted=true"
+        },
+        {
+          "name": "100% silent-failure prevention across all failure scenarios vs 0% in naive filter(Boolean)",
+          "passed": true,
+          "actual": "guard=100% vs naive=0%",
+          "expected": "guard=100% vs naive=0%"
+        }
+      ],
+      "metrics": {
+        "totalScenarios": 5,
+        "fanOutSize": 10,
+        "quorumThreshold": 5,
+        "guardedSilentFailurePreventionPct": 100,
+        "naiveSilentFailurePreventionPct": 0,
+        "scenarioBreakdown": [
+          {
+            "scenario": "0% failure (10/10 valid)",
+            "failureRatePct": 0,
+            "validCount": 10,
+            "missingUnits": 0,
+            "degraded": false,
+            "quorumBreached": false,
+            "guardedStatus": "OK_COMPLETE",
+            "naiveStatus": "OK_SYNTHESIZED"
+          },
+          {
+            "scenario": "20% failure within quorum (8/10 valid)",
+            "failureRatePct": 20,
+            "validCount": 8,
+            "missingUnits": 2,
+            "degraded": true,
+            "quorumBreached": false,
+            "guardedStatus": "DEGRADED_PARTIAL",
+            "naiveStatus": "OK_SYNTHESIZED"
+          },
+          {
+            "scenario": "50% failure at quorum boundary (5/10 valid)",
+            "failureRatePct": 50,
+            "validCount": 5,
+            "missingUnits": 5,
+            "degraded": true,
+            "quorumBreached": false,
+            "guardedStatus": "DEGRADED_PARTIAL",
+            "naiveStatus": "OK_SYNTHESIZED"
+          },
+          {
+            "scenario": "60% failure exceeding quorum (4/10 valid)",
+            "failureRatePct": 60,
+            "validCount": 4,
+            "missingUnits": 6,
+            "degraded": true,
+            "quorumBreached": true,
+            "guardedStatus": "FAILED_QUORUM",
+            "naiveStatus": "OK_SYNTHESIZED"
+          },
+          {
+            "scenario": "100% failure total outage (0/10 valid)",
+            "failureRatePct": 100,
+            "validCount": 0,
+            "missingUnits": 10,
+            "degraded": true,
+            "quorumBreached": true,
+            "guardedStatus": "FAILED_QUORUM",
+            "naiveStatus": "OK_SYNTHESIZED"
+          }
+        ]
+      },
+      "headlineComparison": {
+        "baseline": "0.0% silent-failure detection (naive filter(Boolean) synthesizes on 40% or 0% data)",
+        "graphEngineering": "100.0% detection & quorum enforcement (flags partial >=50%, fails closed <ceil(N/2))",
+        "improvement": "+100.0 percentage points silent-failure prevention"
+      },
+      "durationMs": 1.18
+    },
+    {
+      "id": "three-skeptic-verifier",
+      "title": "Eval 3: 3-Skeptic Fresh-Context Majority Vote vs. Self-Grading Loop",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "Dataset contains 20 labeled findings (10 valid, 4 logic, 3 stale, 3 fabricated-source)",
+          "passed": true,
+          "actual": "total=20 (10/4/3/3)",
+          "expected": "total=20 (10/4/3/3)"
+        },
+        {
+          "name": "3-Skeptic Majority Vote (>=2/3) achieves 100% Precision and 100% Recall (F1 = 1.000)",
+          "passed": true,
+          "actual": "P=100%, R=100%, F1=100%",
+          "expected": "P=100%, R=100%, F1=100%"
+        },
+        {
+          "name": "3-Skeptic Majority Vote filters 100% (10/10) of false positives across all 3 error lenses",
+          "passed": true,
+          "actual": "FP_Filtered=10/10 (100%)",
+          "expected": "FP_Filtered=10/10 (100%)"
+        },
+        {
+          "name": "Majority vote (>=2/3) preserves valid findings that receive 2/3 votes despite 1 conservative nit",
+          "passed": true,
+          "actual": "F09(2/3)->KEEP, F10(2/3)->KEEP",
+          "expected": "2/3 votes kept"
+        },
+        {
+          "name": "3-Skeptic Verifier outperforms Self-Grading Loop on Precision (100% vs 55.6%) and FP filtering (100% vs 20%)",
+          "passed": true,
+          "actual": "3-Skeptic F1=100% (FP filter 100%) vs Self-Grade F1=71.4% (FP filter 20%)",
+          "expected": "3-Skeptic > Self-Grade"
+        }
+      ],
+      "metrics": {
+        "datasetSize": 20,
+        "validClaimsCount": 10,
+        "invalidLogicCount": 4,
+        "invalidStaleCount": 3,
+        "invalidFabricatedSourceCount": 3,
+        "threeSkeptic": {
+          "tp": 10,
+          "fp": 0,
+          "tn": 10,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "f1": 1,
+          "fpFilteringRate": 1,
+          "precisionPct": 100,
+          "recallPct": 100,
+          "f1Pct": 100,
+          "fpFilteringRatePct": 100
+        },
+        "selfGradingLoop": {
+          "tp": 10,
+          "fp": 8,
+          "tn": 2,
+          "fn": 0,
+          "precision": 0.5556,
+          "recall": 1,
+          "f1": 0.7143,
+          "fpFilteringRate": 0.2,
+          "precisionPct": 55.6,
+          "recallPct": 100,
+          "f1Pct": 71.4,
+          "fpFilteringRatePct": 20
+        }
+      },
+      "headlineComparison": {
+        "baseline": "Precision 55.6%, F1 71.4%, FP Filter 20% (Self-Grading Loop)",
+        "graphEngineering": "Precision 100%, F1 100%, FP Filter 100% (3-Skeptic Majority Vote)",
+        "improvement": "+80.0% false-positive filtering, +28.6% F1"
+      },
+      "durationMs": 0.93
+    },
+    {
+      "id": "context-collapse-layered-fanin",
+      "title": "Eval 4: Single-Step Fan-In vs. Layered Fan-In (chunk(40))",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "160 verified claims total 80,000 chars (20,000 tokens) in flat fan-in",
+          "passed": true,
+          "actual": "160 claims, 80000 chars (20000 tokens)",
+          "expected": "160 claims, 80000 chars (20000 tokens)"
+        },
+        {
+          "name": "chunkArray(160, 40) partitions claims into 4 balanced batches of 40",
+          "passed": true,
+          "actual": "4 chunks of [40, 40, 40, 40]",
+          "expected": "4 chunks of [40, 40, 40, 40]"
+        },
+        {
+          "name": "Layered fan-in reduces peak synthesizer prompt by 78.0% (80,000 -> 17,600 chars)",
+          "passed": true,
+          "actual": "80000 -> 17600 chars (-78%)",
+          "expected": "80000 -> 17600 chars (-78.0%)"
+        },
+        {
+          "name": "100% of 160 claim IDs preserved across layered group digests into final synthesis",
+          "passed": true,
+          "actual": "160/160 claim IDs preserved",
+          "expected": "160/160 claim IDs preserved"
+        }
+      ],
+      "metrics": {
+        "totalClaims": 160,
+        "chunkSize": 40,
+        "chunkCount": 4,
+        "flatPeakPromptChars": 80000,
+        "flatPeakPromptTokens": 20000,
+        "layeredPeakPromptChars": 17600,
+        "layeredPeakPromptTokens": 4400,
+        "peakContextReductionPct": 78,
+        "citationPreservationPct": 100
+      },
+      "headlineComparison": {
+        "baseline": "80,000 chars / 20,000 tokens (flat 160-claim fan-in)",
+        "graphEngineering": "17,600 chars / 4,400 tokens (chunk(40) layered fan-in)",
+        "improvement": "-78% peak synthesizer prompt size (100% citation retention)"
+      },
+      "durationMs": 27.76
+    },
+    {
+      "id": "durable-checkpoint-replay",
+      "title": "Eval 5: ctx.step & ctx.pause Resume Efficiency (double-diamond & diamond)",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "Run 1 executes 9 Wave 1 subagents (32,000 tokens) and pauses at approve-positioning-v1",
+          "passed": true,
+          "actual": "gate=approve-positioning-v1, wave1Agents=9, wave1Tokens=32000",
+          "expected": "gate=approve-positioning-v1, wave1Agents=9, wave1Tokens=32000"
+        },
+        {
+          "name": "0 Wave 1 subagents re-run on resume (all 9 Wave 1 steps replayed from durable journal)",
+          "passed": true,
+          "actual": "wave1AgentsReRun=0, replayedSteps=9/9",
+          "expected": "wave1AgentsReRun=0, replayedSteps=9/9"
+        },
+        {
+          "name": "100.0% token savings on replayed Wave 1 stages (32,000 tokens saved)",
+          "passed": true,
+          "actual": "100% saved (32000 tokens saved, 0 re-spent)",
+          "expected": "100% saved (32000 tokens saved, 0 re-spent)"
+        },
+        {
+          "name": "Resume executes only Wave 2 (7 subagents, 24,000 tokens) and produces final decision",
+          "passed": true,
+          "actual": "wave2Agents=7, wave2Tokens=24000, winner=Option-B",
+          "expected": "wave2Agents=7, wave2Tokens=24000, winner=Option-B"
+        }
+      ],
+      "metrics": {
+        "pauseGate": "approve-positioning-v1",
+        "wave1SubagentsInitial": 9,
+        "wave1TokensInitial": 32000,
+        "wave1SubagentsReRunOnResume": 0,
+        "wave1TokensReSpentOnResume": 0,
+        "replayedStageTokenSavingsPct": 100,
+        "wave2SubagentsOnResume": 7,
+        "wave2TokensOnResume": 24000,
+        "nonCheckpointedTotalTokensIfRestarted": 88000,
+        "checkpointedTotalTokensAcrossPauseResume": 56000
+      },
+      "headlineComparison": {
+        "baseline": "9 Wave 1 agents re-run / 32,000 tokens wasted on restart after human review",
+        "graphEngineering": "0 Wave 1 agents re-run / 0 tokens wasted on resume (ctx.step + ctx.pause journal)",
+        "improvement": "100.0% token & subagent savings on replayed stages (32,000 tokens saved)"
+      },
+      "durationMs": 1.85
+    },
+    {
+      "id": "cyclic-loop-convergence",
+      "title": "Eval 6: Unknown-Size Discovery Loop Convergence & Cap Enforcement",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "Per-round new issue discovery matches [6, 2, 0, 0]",
+          "passed": true,
+          "actual": "newIssues=[6,2,0,0]",
+          "expected": "newIssues=[6,2,0,0]"
+        },
+        {
+          "name": "Exact fingerprint deduplication filters all 5 duplicate findings (8 unique retained)",
+          "passed": true,
+          "actual": "unique=8, duplicatesSkipped=5 (R2=3, R3=2)",
+          "expected": "unique=8, duplicatesSkipped=5 (R2=3, R3=2)"
+        },
+        {
+          "name": "Loop converges and terminates automatically after Round 4 (2 consecutive zero-new rounds)",
+          "passed": true,
+          "actual": "roundsExecuted=4, terminatedBy=CONVERGENCE_2_ZERO_ROUNDS",
+          "expected": "roundsExecuted=4, terminatedBy=CONVERGENCE_2_ZERO_ROUNDS"
+        },
+        {
+          "name": "Hard-cap safety guard terminates non-converging discovery strictly at maxRounds",
+          "passed": true,
+          "actual": "capRounds=4, terminatedBy=MAX_ROUNDS_CAP",
+          "expected": "capRounds=4, terminatedBy=MAX_ROUNDS_CAP"
+        }
+      ],
+      "metrics": {
+        "maxRoundsConfigured": 8,
+        "roundsExecuted": 4,
+        "roundsSaved": 4,
+        "roundsSavedPct": 50,
+        "uniqueIssuesFound": 8,
+        "duplicatesFiltered": 5,
+        "deduplicationAccuracyPct": 100,
+        "terminatedBy": "CONVERGENCE_2_ZERO_ROUNDS",
+        "roundHistory": [
+          {
+            "round": 1,
+            "rawScanned": 6,
+            "newIssues": 6,
+            "duplicatesSkipped": 0,
+            "cumulativeUnique": 6,
+            "consecutiveZeroNew": 0
+          },
+          {
+            "round": 2,
+            "rawScanned": 5,
+            "newIssues": 2,
+            "duplicatesSkipped": 3,
+            "cumulativeUnique": 8,
+            "consecutiveZeroNew": 0
+          },
+          {
+            "round": 3,
+            "rawScanned": 2,
+            "newIssues": 0,
+            "duplicatesSkipped": 2,
+            "cumulativeUnique": 8,
+            "consecutiveZeroNew": 1
+          },
+          {
+            "round": 4,
+            "rawScanned": 0,
+            "newIssues": 0,
+            "duplicatesSkipped": 0,
+            "cumulativeUnique": 8,
+            "consecutiveZeroNew": 2
+          }
+        ]
+      },
+      "headlineComparison": {
+        "baseline": "Runs all 8 rounds with 5 duplicate bug reports (unbounded or fixed-round loop)",
+        "graphEngineering": "Terminates at Round 4 with 8/8 unique bugs & 0 duplicates (2-zero-round convergence)",
+        "improvement": "50.0% round budget saved, 100.0% duplicate elimination"
+      },
+      "durationMs": 0.67
+    },
+    {
+      "id": "hook-anchor-and-el-mds-stacking",
+      "title": "Eval 7: Frozen-Rule Hook Enforcement & el-mds Non-Interference",
+      "passed": true,
+      "assertions": [
+        {
+          "name": "All 12 hook & subagent lifecycle scenarios executed and passed",
+          "passed": true,
+          "actual": "12/12 passed",
+          "expected": "12/12 passed"
+        },
+        {
+          "name": "100% block rate on edits/writes to tests/*.test.js, benchmark/*, evals/*, and .github/hooks/*",
+          "passed": true,
+          "actual": "100% (5/5 blocked)",
+          "expected": "100% (5/5 blocked)"
+        },
+        {
+          "name": "100% allow rate on src/* implementation files and read-only view calls",
+          "passed": true,
+          "actual": "100% (3/3 allowed)",
+          "expected": "100% (3/3 allowed)"
+        },
+        {
+          "name": "100% abstain (undefined) rate on task and run_dynamic_workflow (zero interference with el-mds)",
+          "passed": true,
+          "actual": "100% (2/2 returned undefined)",
+          "expected": "100% (2/2 returned undefined)"
+        },
+        {
+          "name": "100% block rate on uncited research subagent outputs + anchor injection on start",
+          "passed": true,
+          "actual": "uncitedBlock=100%, citedAndAnchored=true",
+          "expected": "uncitedBlock=100%, citedAndAnchored=true"
+        }
+      ],
+      "metrics": {
+        "totalScenarios": 12,
+        "passedScenarios": 12,
+        "frozenPathBlockRatePct": 100,
+        "srcImplementationAllowRatePct": 100,
+        "elMdsAbstainRatePct": 100,
+        "uncitedResearchBlockRatePct": 100,
+        "scenarios": [
+          {
+            "id": "S01",
+            "category": "frozen_mutation",
+            "hook": "onPreToolUse",
+            "description": "edit tests/auth.test.js blocked when COPILOT_FREEZE_TESTS=1",
+            "passed": true
+          },
+          {
+            "id": "S02",
+            "category": "frozen_mutation",
+            "hook": "onPreToolUse",
+            "description": "create benchmark/latency.bench.js blocked when COPILOT_FREEZE_TESTS=1",
+            "passed": true
+          },
+          {
+            "id": "S03",
+            "category": "frozen_mutation",
+            "hook": "onPreToolUse",
+            "description": "edit evals/scenarios.mjs blocked when COPILOT_FREEZE_TESTS=1",
+            "passed": true
+          },
+          {
+            "id": "S04",
+            "category": "frozen_mutation",
+            "hook": "onPreToolUse",
+            "description": "edit .github/hooks/freeze-tests.mjs self-tamper blocked",
+            "passed": true
+          },
+          {
+            "id": "S05",
+            "category": "frozen_mutation",
+            "hook": "onPreToolUse",
+            "description": "powershell Set-Content tests/auth.test.js shell bypass blocked",
+            "passed": true
+          },
+          {
+            "id": "S06",
+            "category": "src_allow",
+            "hook": "onPreToolUse",
+            "description": "edit src/auth/login.js implementation file allowed",
+            "passed": true
+          },
+          {
+            "id": "S07",
+            "category": "src_allow",
+            "hook": "onPreToolUse",
+            "description": "create src/utils/chunk.js implementation file allowed",
+            "passed": true
+          },
+          {
+            "id": "S08",
+            "category": "src_allow",
+            "hook": "onPreToolUse",
+            "description": "view tests/auth.test.js read-only inspection of frozen test allowed",
+            "passed": true
+          },
+          {
+            "id": "S09",
+            "category": "el_mds_abstain",
+            "hook": "onPreToolUse",
+            "description": "task tool call returns undefined (abstains so el-mds gate runs)",
+            "passed": true
+          },
+          {
+            "id": "S10",
+            "category": "el_mds_abstain",
+            "hook": "onPreToolUse",
+            "description": "run_dynamic_workflow call returns undefined (abstains so el-mds gate runs)",
+            "passed": true
+          },
+          {
+            "id": "S11",
+            "category": "subagent_citation_gate",
+            "hook": "onSubagentStop",
+            "description": "uncited research subagent output blocked by onSubagentStop",
+            "passed": true
+          },
+          {
+            "id": "S12",
+            "category": "subagent_anchor_and_cited",
+            "hook": "onSubagentStart+onSubagentStop",
+            "description": "onSubagentStart injects frozen anchor and onSubagentStop allows cited research output",
+            "passed": true
+          }
+        ]
+      },
+      "headlineComparison": {
+        "baseline": "Prompt-only instructions drift after compaction; naive 'allow' hooks override el-mds",
+        "graphEngineering": "100% frozen-path block, 100% src/* allow, 100% el-mds abstain, 100% uncited research block",
+        "improvement": "Deterministic invariant enforcement outside LLM context window"
+      },
+      "durationMs": 2.31
+    }
+  ]
+}

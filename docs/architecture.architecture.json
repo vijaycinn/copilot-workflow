@@ -1,0 +1,267 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Graph Engineering Architecture — GitHub Copilot Agent Harness",
+    "output": "architecture.html",
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "single-diamond",
+        "label": "Single Diamond Spine",
+        "focus": ["control_plane", "mode_router", "fanout_wave", "reduce_gate", "skeptic_verifier", "synthesis_fanin"],
+        "note": "Primary execution spine from /diamond-workflow control plane through fan-out, reduce, 3-skeptic vote, and layered synthesis."
+      },
+      {
+        "id": "system1-and-hooks",
+        "label": "Layer 2: System-1 & Hooks",
+        "focus": ["control_plane", "el_mds_gate", "harness_hooks", "mode_router", "fanout_wave"],
+        "note": "Pre-prompt System-1 triage at 127.0.0.1:8787/v1/gate plus partitioned onPreToolUse and subagent citation hooks."
+      },
+      {
+        "id": "double-and-loop",
+        "label": "Double-Diamond & Loop",
+        "focus": ["fanout_wave", "reduce_gate", "workflow_journal", "skeptic_verifier", "synthesis_fanin"],
+        "note": "Mid-graph ctx.pause(approve-positioning-v1) for gtm-kit and multi-round seen-Map convergence for discovery-loop."
+      },
+      {
+        "id": "durable-state",
+        "label": "Layer 4: State & Vault",
+        "focus": ["mode_router", "sqlite_todos", "reduce_gate", "workflow_journal", "skeptic_verifier", "vault_graph"],
+        "note": "Durable SQLite workflow journal, Mode B session todos/todo_deps, and vault_mcp.py hops=1 progressive disclosure."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "control_plane",
+      "type": "frontend",
+      "label": "Control Plane",
+      "sublabel": "SKILL.md + Specs",
+      "tag": "Fake-Edge Test",
+      "pos": [30, 225],
+      "size": [140, 58]
+    },
+    {
+      "id": "mode_router",
+      "type": "backend",
+      "label": "Mode Router",
+      "sublabel": "Mode A / Mode B",
+      "tag": "6 Graph Specs",
+      "pos": [245, 225],
+      "size": [140, 58]
+    },
+    {
+      "id": "fanout_wave",
+      "type": "cloud",
+      "label": "Diamond Fan-Out",
+      "sublabel": "ctx.parallel Wave",
+      "tag": "Schema + Labels",
+      "pos": [465, 225],
+      "size": [140, 58]
+    },
+    {
+      "id": "reduce_gate",
+      "type": "backend",
+      "label": "Code Reduce",
+      "sublabel": "reduce-w1-v1",
+      "tag": "Null + Triage",
+      "pos": [685, 225],
+      "size": [140, 58]
+    },
+    {
+      "id": "skeptic_verifier",
+      "type": "security",
+      "label": "3-Skeptic Vote",
+      "sublabel": "ctx.pipeline >=2/3",
+      "tag": "Fresh Context",
+      "pos": [905, 225],
+      "size": [140, 58]
+    },
+    {
+      "id": "synthesis_fanin",
+      "type": "frontend",
+      "label": "Layered Fan-In",
+      "sublabel": "chunk(40) + pause",
+      "tag": "3 Topologies",
+      "pos": [1125, 225],
+      "size": [140, 58]
+    },
+    {
+      "id": "el_mds_gate",
+      "type": "security",
+      "label": "el-mds / el-jev",
+      "sublabel": ":8787 /v1/gate",
+      "tag": "System-1 Gate",
+      "pos": [245, 85],
+      "size": [140, 58]
+    },
+    {
+      "id": "harness_hooks",
+      "type": "security",
+      "label": "Harness Hooks",
+      "sublabel": "Freeze + sanitize",
+      "tag": "PreTool & Stop",
+      "pos": [465, 85],
+      "size": [140, 58]
+    },
+    {
+      "id": "sqlite_todos",
+      "type": "database",
+      "label": "Session SQLite",
+      "sublabel": "todos + todo_deps",
+      "tag": "Mode B Waves",
+      "pos": [245, 365],
+      "size": [140, 58]
+    },
+    {
+      "id": "workflow_journal",
+      "type": "database",
+      "label": "Workflow Journal",
+      "sublabel": "ctx.step / pause",
+      "tag": "SQLite Log",
+      "pos": [685, 365],
+      "size": [140, 58]
+    },
+    {
+      "id": "vault_graph",
+      "type": "database",
+      "label": "Vault MCP Graph",
+      "sublabel": "vault_mcp hops=1",
+      "tag": "2,000-char Cap",
+      "pos": [905, 365],
+      "size": [140, 58]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "security-group",
+      "label": "Layer 2: System-1 Gate & Harness Hooks",
+      "wraps": ["el_mds_gate", "harness_hooks"]
+    },
+    {
+      "kind": "region",
+      "label": "Layer 3: Execution Plane (diamond-engine in workflow.mjs)",
+      "wraps": ["fanout_wave", "reduce_gate", "skeptic_verifier", "synthesis_fanin"]
+    },
+    {
+      "kind": "region",
+      "label": "Layer 4: Durable State & Knowledge Graph Plane",
+      "wraps": ["sqlite_todos", "workflow_journal", "vault_graph"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "control-to-router",
+      "from": "control_plane",
+      "to": "mode_router",
+      "label": "Graph Spec",
+      "variant": "emphasis"
+    },
+    {
+      "id": "router-to-fanout",
+      "from": "mode_router",
+      "to": "fanout_wave",
+      "label": "Mode A: SDK",
+      "variant": "emphasis"
+    },
+    {
+      "id": "fanout-to-reduce",
+      "from": "fanout_wave",
+      "to": "reduce_gate",
+      "label": "Typed Map",
+      "variant": "emphasis"
+    },
+    {
+      "id": "reduce-to-verifier",
+      "from": "reduce_gate",
+      "to": "skeptic_verifier",
+      "label": "Deduped Claims",
+      "variant": "emphasis"
+    },
+    {
+      "id": "verifier-to-synthesis",
+      "from": "skeptic_verifier",
+      "to": "synthesis_fanin",
+      "label": "Verified >=2/3",
+      "variant": "emphasis"
+    },
+    {
+      "id": "el-mds-to-router",
+      "from": "el_mds_gate",
+      "to": "mode_router",
+      "label": "Tier Gate",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 42
+    },
+    {
+      "id": "hooks-to-fanout",
+      "from": "harness_hooks",
+      "to": "fanout_wave",
+      "label": "Hook Guards",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 42
+    },
+    {
+      "id": "router-to-todos",
+      "from": "mode_router",
+      "to": "sqlite_todos",
+      "label": "Mode B: Waves",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 42
+    },
+    {
+      "id": "reduce-to-journal",
+      "from": "reduce_gate",
+      "to": "workflow_journal",
+      "label": "Checkpoint",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 42
+    },
+    {
+      "id": "verifier-to-vault",
+      "from": "skeptic_verifier",
+      "to": "vault_graph",
+      "label": "hops=1 Read",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 42
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "L1–L2: Control Plane & Harness Gates",
+      "items": [
+        "/diamond-workflow Fake-Edge Test & 6 Specs (Mode A SDK vs Mode B SQLite)",
+        "127.0.0.1:8787/v1/gate + PreTool freeze/sanitize.py + citation gates"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "L3: Execution Plane (3 Topologies)",
+      "items": [
+        "Single: Vijay Agent parallel -> reduce-w1-v1 + el-jev -> 3-Skeptic >=2/3 -> chunk(40)",
+        "Double (gtm-kit pause) & Loop (discovery-loop seen Map, emptyRounds === 2)"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "L4: Durable State & Knowledge Graph",
+      "items": [
+        "Workflow SQLite journal (ctx.step / ctx.pause) & session todos/todo_deps",
+        "vault_mcp.py hops=1 progressive disclosure (2,000-char neighbour cap)"
+      ]
+    }
+  ]
+}

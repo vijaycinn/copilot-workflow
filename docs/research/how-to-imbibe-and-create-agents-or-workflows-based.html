@@ -1,0 +1,1445 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Graph Engineering for GitHub Copilot Agent Harness — Architecture, Prompts &amp; Blueprints</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#f7f6f3; --paper-2:#efeeea; --ink:#16171a; --ink-2:#55575e; --ink-3:#8b8d94;
+  --rule:#dad8d2; --rule-hard:#b9b7b0;
+  --signal:#a32b1f; --signal-bg:#f6e9e6;
+  --live:#1c6444;   --live-bg:#e6efe9;
+  --serif:"Newsreader",Georgia,serif;
+  --cond:"IBM Plex Sans Condensed","Roboto Condensed","Segoe UI",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",Consolas,monospace;
+  --elev-ink:22 23 26; --rail-max:940px; --rail-pad:clamp(16px,4vw,40px); --tick:6px;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --paper:#141416; --paper-2:#1c1d20; --ink:#eceae5; --ink-2:#a3a29d; --ink-3:#75767b;
+    --rule:#2c2d31; --rule-hard:#43444a; --signal:#e2705f; --signal-bg:#2a1a17;
+    --live:#5fb98c; --live-bg:#152420; --elev-ink:0 0 0;
+  }
+}
+*{box-sizing:border-box}
+.mast .when,.sec-h .note,.tag,.callout .msg,.kv dt,.kv code,.chart .lab,.chart .foot,
+.ti .d,.sq .n,.pull cite,.colophon,text,pre,code,.num{font-variant-numeric:tabular-nums}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--cond);
+  font-size:15px;line-height:1.48;-webkit-font-smoothing:antialiased;font-kerning:normal;font-optical-sizing:auto}
+.vc p,.fig .cap,.chart .foot,.say li,.kv dd{text-wrap:pretty}
+.sheet{max-width:var(--rail-max);margin:0 auto;padding:36px 28px 68px}
+a{color:var(--ink);text-decoration:underline;text-decoration-color:var(--rule-hard);text-underline-offset:2px}
+a:hover{color:var(--signal);text-decoration-color:var(--signal)}
+:focus-visible{outline:2px solid var(--signal);outline-offset:3px}
+
+/* masthead */
+.mast{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;border-bottom:2px solid var(--ink);padding-bottom:12px}
+.mast h1{font-size:32px;font-weight:700;text-transform:uppercase;letter-spacing:.005em;margin:0;line-height:1.1;text-wrap:balance}
+.mast .kick{font-size:10px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--signal);margin-bottom:5px;font-family:var(--mono)}
+.mast .when{font-family:var(--mono);font-size:11px;color:var(--ink-3);text-align:right;text-transform:uppercase;letter-spacing:.05em;line-height:1.65;white-space:nowrap}
+
+/* quick nav */
+.toc{display:flex;flex-wrap:wrap;gap:6px 14px;padding:10px 0;border-bottom:1px solid var(--rule);font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.toc a{text-decoration:none;color:var(--ink-2)}
+.toc a:hover{color:var(--signal)}
+.toc span{color:var(--rule-hard)}
+
+/* verdict row */
+.verdict{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);margin:18px 0 0}
+.vc{background:var(--paper);padding:14px 16px}
+.vc .st{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;margin-bottom:6px;color:var(--ink-3)}
+.vc.risk .st{color:var(--signal)} .vc.go .st{color:var(--live)}
+.vc p{margin:0;font-family:var(--cond);font-size:14.5px;line-height:1.45;color:var(--ink)}
+.vc b,.vc .lit{font-weight:600;color:var(--ink);border-bottom:2px solid var(--rule-hard);padding-bottom:1px}
+.vc.risk b{border-bottom-color:var(--signal)} .vc.go .lit{border-bottom-color:var(--live)}
+
+/* section header */
+.sec{margin-top:38px}
+.sec-h{display:flex;align-items:baseline;gap:12px;border-bottom:1.5px solid var(--ink);padding-bottom:5px;margin-bottom:14px;flex-wrap:wrap}
+.sec-h h2{font-size:19px;font-weight:700;text-transform:uppercase;letter-spacing:.01em;margin:0;text-wrap:balance}
+.sec-h .note{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;margin-left:auto;white-space:nowrap}
+
+/* headline figure */
+.fig{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin:0 0 8px}
+.fig .big{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:clamp(30px,5.5vw,46px);font-weight:700;letter-spacing:-.04em;line-height:1;text-wrap:balance}
+.fig .big em{font-style:normal;color:var(--signal)}
+.fig .big .ok{color:var(--live)}
+.fig .cap{font-family:var(--cond);color:var(--ink-2);font-size:15px;max-width:660px}
+
+/* horizontal CSS bars */
+.bars{margin-top:12px}
+.brow{display:grid;grid-template-columns:188px 1fr 96px;gap:12px;align-items:center;padding:4px 0;font-size:13.5px}
+.btrack{height:15px;background:var(--paper-2);border:1px solid var(--rule);display:flex;align-items:center;overflow:hidden;box-shadow:inset 0 1px 2px rgb(var(--elev-ink)/.08)}
+.bfill{display:flex;align-items:center;height:100%;background:var(--ink-2);min-width:2px;flex:0 0 auto}
+.brow.hot .bfill{background:var(--signal)} .brow.hot{color:var(--signal)}
+.brow.good .bfill{background:var(--live)}
+.brow .val{font-family:var(--mono);font-size:11.5px;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.brow.hot .val{color:var(--signal);font-weight:600}
+.brow.good .val{color:var(--live);font-weight:600}
+.tag{font-family:var(--mono);font-size:10px;color:var(--ink-3);margin-left:7px;white-space:nowrap;letter-spacing:.03em;line-height:1}
+.tag.inv{color:var(--paper);margin-left:0;padding:0 7px}
+.callout{display:grid;grid-template-columns:188px 1fr;gap:12px;margin-top:4px}
+.callout .msg{font-family:var(--mono);font-size:10.5px;color:var(--signal);line-height:1.5}
+
+/* exhibit diagram box */
+.exhibit{position:relative;padding:clamp(14px,2vw,20px);border:1px solid var(--rule);background:var(--paper-2);margin-top:12px}
+.exhibit::before,.exhibit::after{content:"";position:absolute;width:18px;height:18px;pointer-events:none}
+.exhibit::before{inset:0 auto auto 0;border-top:2px solid var(--rule-hard);border-left:2px solid var(--rule-hard)}
+.exhibit::after{inset:auto 0 0 auto;border-right:2px solid var(--rule-hard);border-bottom:2px solid var(--rule-hard)}
+.exhibit-kicker{display:flex;justify-content:space-between;gap:16px;margin-bottom:10px;color:var(--ink-3);font:700 10px/1.2 var(--mono);letter-spacing:.1em;text-transform:uppercase;flex-wrap:wrap}
+.exhibit svg{width:100%;height:auto;display:block}
+.exhibit .foot{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);margin-top:8px;line-height:1.55}
+.exhibit .foot b{color:var(--ink-2);font-weight:500}
+text{font-family:"IBM Plex Mono",monospace}
+
+/* matrix tables */
+.matrix{border-top:2px solid var(--rule-hard);overflow-x:auto;background:var(--paper);margin-top:12px}
+.matrix table{border-collapse:collapse;width:100%;min-width:640px;font-size:13.2px}
+.matrix th,.matrix td{padding:10px 12px;border-bottom:1px solid var(--rule);border-right:1px solid var(--rule);text-align:left;vertical-align:top;line-height:1.42}
+.matrix th:last-child,.matrix td:last-child{border-right:0}
+.matrix thead th{background:var(--paper-2);color:var(--ink-2);font:700 10px/1.2 var(--mono);letter-spacing:.09em;text-transform:uppercase}
+.matrix tbody th{width:22%;color:var(--ink);font-weight:600}
+.matrix td{color:var(--ink-2)}
+.matrix code{font-family:var(--mono);font-size:11.5px;background:var(--paper-2);color:var(--ink);padding:1px 4px}
+.matrix .num{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--ink);text-align:right;white-space:nowrap}
+.matrix .is-risk{color:var(--signal);font-weight:600}
+.matrix .is-live{color:var(--live);font-weight:600}
+
+/* two-col comparison & argument rail */
+.say{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--rule);border:1px solid var(--rule);margin-top:12px}
+.say>div{background:var(--paper);padding:13px 15px}
+.say h3{font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;margin:0 0 9px}
+.say .no h3{color:var(--signal)} .say .yes h3{color:var(--live)}
+.say ul{margin:0;padding-left:16px} .say li{margin-bottom:7px;font-size:13.5px;line-height:1.42}
+.say code{font-family:var(--mono);font-size:11.5px;background:var(--paper-2);padding:1px 4px}
+
+.argument{display:grid;grid-template-columns:minmax(0,2.1fr) minmax(220px,.9fr);gap:clamp(20px,3.5vw,44px);align-items:start;margin-top:12px}
+.argument>*{min-width:0}
+.rail{border-left:2px solid var(--rule-hard);padding-left:16px;color:var(--ink-2)}
+.rail h3{margin:0 0 10px;color:var(--ink-3);font:700 10px/1.2 var(--mono);letter-spacing:.09em;text-transform:uppercase}
+.rail ul{margin:0;padding:0;list-style:none;display:grid;gap:9px}
+.rail li{margin:0;padding-bottom:9px;border-bottom:1px solid var(--rule);font-size:12.5px;line-height:1.45}
+.rail li:last-child{border-bottom:0}
+.rail code{font-family:var(--mono);font-size:11px;background:var(--paper-2);padding:1px 4px;color:var(--ink)}
+
+/* sequence steps */
+.seq{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);margin-top:12px}
+.sq{background:var(--paper);padding:12px 13px}
+.sq .n{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--signal);margin-bottom:5px}
+.sq .t{font-size:12.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px;line-height:1.25}
+.sq p{margin:0;font-size:12.5px;line-height:1.4;color:var(--ink-2)}
+.sq code{font-family:var(--mono);font-size:11px;background:var(--paper-2);padding:0 3px;color:var(--ink)}
+
+/* prompt cards grid */
+.prompt-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px}
+.prompt-card{background:var(--paper);border:1px solid var(--rule);display:flex;flex-direction:column}
+.prompt-card .code-head{margin-top:0;border:0;border-bottom:1px solid var(--rule)}
+.prompt-card pre{border:0;border-left:3px solid var(--live);flex:1;margin:0}
+.prompt-card.claude pre{border-left-color:var(--rule-hard)}
+
+/* timeline schematic */
+.tl{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:0;margin-top:12px;position:relative}
+.tl::before{content:"";position:absolute;left:0;right:0;top:31px;height:1px;background:var(--rule-hard)}
+.ti{text-align:center;padding:0 4px;position:relative}
+.ti .d{font-family:var(--mono);font-size:9.5px;color:var(--ink-3);height:26px;letter-spacing:.03em;line-height:1.25}
+.ti .dot{width:11px;height:11px;border-radius:50%;background:var(--ink-3);margin:0 auto;position:relative;z-index:1;border:2px solid var(--paper)}
+.ti.bad .dot{background:var(--signal)} .ti.good .dot{background:var(--live)}
+.ti.now .dot{background:var(--live);width:15px;height:15px;margin-top:-2px;box-shadow:0 0 0 3px var(--live-bg)}
+.ti .t{font-size:11.5px;line-height:1.3;margin-top:7px;font-weight:500}
+.ti.bad .t{color:var(--signal)} .ti.good .t{color:var(--live)} .ti.now .t{color:var(--live);font-weight:700}
+
+/* pull quote & kv */
+.pull{margin:12px 0;padding:10px 0 10px 18px;border-left:3px solid var(--signal);font-family:var(--serif);font-style:italic;font-size:16px;line-height:1.45}
+.pull cite{display:block;margin-top:6px;font-style:normal;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+
+/* code blocks */
+.code-head{display:flex;justify-content:space-between;align-items:center;background:var(--paper-2);border:1px solid var(--rule);border-bottom:0;padding:6px 12px;margin-top:12px;font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-2);font-weight:600}
+.code-head span{color:var(--ink-3);font-weight:400}
+pre{margin:0;font:11.6px/1.52 var(--mono);background:var(--paper-2);border:1px solid var(--rule);border-left:3px solid var(--rule-hard);padding:12px 14px;overflow-x:auto;color:var(--ink);white-space:pre-wrap;word-break:break-word}
+pre.live-border{border-left-color:var(--live)}
+pre.risk-border{border-left-color:var(--signal)}
+
+/* optional elevation & keyline */
+.elevated{box-shadow:0 1px 1px -.5px rgb(var(--elev-ink)/.05),0 3px 3px -1.5px rgb(var(--elev-ink)/.05),0 6px 6px -3px rgb(var(--elev-ink)/.05),0 12px 12px -6px rgb(var(--elev-ink)/.05)}
+.keyline{position:relative}
+.keyline::before{content:"";position:absolute;inset:0;z-index:1;padding:1px;
+  background:linear-gradient(135deg,var(--rule-hard) 0%,var(--live) 50%,var(--rule-hard) 100%);
+  -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;
+  mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude;pointer-events:none}
+
+/* colophon */
+.colophon{margin-top:44px;padding-top:14px;border-top:1px solid var(--rule);font-family:var(--mono);font-size:10.5px;line-height:1.72;color:var(--ink-3)}
+.colophon b{color:var(--ink-2);font-weight:600}
+.colophon ol{margin:8px 0 0;padding-left:20px}
+.colophon li{margin-bottom:4px}
+
+@media(max-width:760px){
+  .seq,.prompt-grid{grid-template-columns:1fr}
+  .argument{grid-template-columns:1fr}
+  .rail{border-left:0;border-top:2px solid var(--rule-hard);padding-left:0;padding-top:12px}
+}
+@media(max-width:700px){
+  .tl{grid-auto-flow:row;gap:10px}
+  .tl::before{left:5px;right:auto;top:0;bottom:0;width:1px;height:auto}
+  .ti{display:grid;grid-template-columns:12px 82px 1fr;align-items:center;text-align:left;gap:8px;padding:0}
+  .ti .d{height:auto;order:2} .ti .dot{order:1;margin:0} .ti .t{order:3;margin:0}
+}
+@media(max-width:640px){
+  .sheet{padding:26px 18px 52px}
+  .mast{flex-direction:column;align-items:flex-start}
+  .mast .when{text-align:left}
+  .verdict,.say{grid-template-columns:1fr}
+  .sec-h .note{margin-left:0;flex-basis:100%;margin-top:3px}
+  .brow{grid-template-columns:128px 1fr 74px;gap:8px;font-size:12.5px}
+  .callout{grid-template-columns:1fr}
+}
+@media print{
+  .elevated{box-shadow:none;border:1px solid var(--rule)}
+  .keyline::before{display:none}
+  .exhibit,tr,pre,.prompt-card{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<main class="sheet">
+
+  <!-- MASTHEAD -->
+  <header class="mast">
+    <div>
+      <div class="kick">Architecture, Prompts &amp; Implementation Blueprint · GitHub Copilot CLI v1.0.99-0</div>
+      <h1>Imbibing Graph Engineering in the GitHub Copilot Agent Harness</h1>
+    </div>
+    <div class="when">
+      SOURCE: @ANATOLIKOPADZE<br>
+      STATUS/2080668775796314331<br>
+      OCT 19, 2026 · C:\workspace\your-workspace\RESEARCH
+    </div>
+  </header>
+
+  <nav class="toc" aria-label="Section navigation">
+    <a href="#sec-thesis">01 Thesis &amp; Diamond</a><span>·</span>
+    <a href="#sec-parity">02 Claude Code vs Copilot CLI</a><span>·</span>
+    <a href="#sec-prompts">03 Copy-Paste Prompts</a><span>·</span>
+    <a href="#sec-mapping">04 Harness Mapping</a><span>·</span>
+    <a href="#sec-audit">05 Workspace Audit</a><span>·</span>
+    <a href="#sec-workflow">06 Blueprint: SDK Workflow</a><span>·</span>
+    <a href="#sec-agent">07 Blueprint: .agent.md &amp; Hooks</a><span>·</span>
+    <a href="#sec-impl-plan">08 Implementation Plan &amp; Setup Prompt</a><span>·</span>
+    <a href="#sec-sources">09 Citations</a>
+  </nav>
+
+  <!-- VERDICT ROW -->
+  <section class="verdict elevated" aria-label="Executive Verdict">
+    <div class="vc risk">
+      <div class="st">Don't — Queue Fake Edges</div>
+      <p>Never chain independent subtasks sequentially (<b>A → B → C</b>) or let a worker agent grade its own output inside the same conversation context<sup><a href="#fn1">[1]</a></sup>.</p>
+    </div>
+    <div class="vc">
+      <div class="st">Know — Not Claude-Only</div>
+      <p>Dynamic workflows are <b>first-class in GitHub Copilot CLI</b> via <code>dynamic_workflows_manage(author)</code>, <code>run_dynamic_workflow</code>, <code>defineWorkflow</code>, and <code>/fleet</code><sup><a href="#fn5">[5]</a><a href="#fn6">[6]</a></sup>.</p>
+    </div>
+    <div class="vc go">
+      <div class="st">Build — Diamond + Anchors</div>
+      <p>Fan out bounded nodes with JSON schemas, <span class="lit">reduce in plain code (0 tokens)</span>, filter via 3 fresh-context skeptics, and lock test/git anchors with <code>onPreToolUse</code> hooks<sup><a href="#fn1">[1]</a><a href="#fn18">[18]</a></sup>.</p>
+    </div>
+  </section>
+
+  <!-- SECTION 1: KOPADZE'S GRAPH ENGINEERING THESIS -->
+  <section class="sec" id="sec-thesis">
+    <div class="sec-h">
+      <h2>01 · Anatoli Kopadze's Graph Engineering Architecture</h2>
+      <span class="note">X ARTICLE 2080620345854140416 · 13 SECTIONS · 10 SPEC BLOCKS</span>
+    </div>
+
+    <div class="fig">
+      <div class="big">40 → <em>3–5</em></div>
+      <div class="cap">A 40-step sequential prompt chain typically has only <b>3–5 real data dependencies</b>. Removing "fake edges" collapses wall-clock runtime from sum-of-steps to the slowest parallel stage<sup><a href="#fn1">[1]</a></sup>.</div>
+    </div>
+
+    <blockquote class="pull">
+      “A loop is one agent improving one thing on repeat: try, check, adjust, go again. A graph is a graph of loops, a network where cycles watch and correct each other instead of one agent chasing one number alone... Nodes do the thinking. Edges carry the results.”
+      <cite>Anatoli Kopadze — “Graph Engineering explained: what it is, when to use it and when not to” (2026-07-24)<sup><a href="#fn1">[1]</a></sup></cite>
+    </blockquote>
+
+    <!-- EXHIBIT 1: THE DIAMOND BLUEPRINT SVG -->
+    <div class="exhibit keyline">
+      <div class="exhibit-kicker">
+        <span>Exhibit 1 · The Diamond Pattern (Fan Out → Plain-Code Reduce → 3-Skeptic Verifier → Synthesize)</span>
+        <span>Source: Kopadze §2, §5, §6, §7, §9<sup><a href="#fn1">[1]</a></sup></span>
+      </div>
+      <svg viewBox="0 0 840 275" role="img" aria-label="Architecture diagram of the Diamond Graph Pattern showing Goal splitting via Fake-Edge Test into 4 parallel workers, feeding a deterministic plain-code reducer with count guard, then a fresh-context 3-skeptic verifier anchored by ground truth, a human gate, and final synthesis.">
+        <defs>
+          <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--rule-hard)"/>
+          </marker>
+          <marker id="arr-live" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--live)"/>
+          </marker>
+          <marker id="arr-sig" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--signal)"/>
+          </marker>
+        </defs>
+
+        <!-- Stage 1: Goal & Split -->
+        <rect x="10" y="92" width="112" height="76" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.5"/>
+        <text x="20" y="112" font-size="9.5" font-weight="600" fill="var(--signal)">01 SPLIT</text>
+        <text x="20" y="128" font-size="11" font-weight="600" fill="var(--ink)">Fake-Edge Test</text>
+        <text x="20" y="143" font-size="9.5" fill="var(--ink-2)">No data crosses</text>
+        <text x="20" y="156" font-size="9.5" fill="var(--ink-2)">= run at once</text>
+
+        <!-- Fan-out edges -->
+        <line x1="122" y1="110" x2="164" y2="38" stroke="var(--rule-hard)" stroke-width="1.3" marker-end="url(#arr)"/>
+        <line x1="122" y1="122" x2="164" y2="96" stroke="var(--rule-hard)" stroke-width="1.3" marker-end="url(#arr)"/>
+        <line x1="122" y1="138" x2="164" y2="154" stroke="var(--rule-hard)" stroke-width="1.3" marker-end="url(#arr)"/>
+        <line x1="122" y1="150" x2="164" y2="212" stroke="var(--rule-hard)" stroke-width="1.3" marker-end="url(#arr)"/>
+
+        <!-- Stage 2: Parallel Workers -->
+        <g>
+          <rect x="168" y="16" width="152" height="44" fill="var(--paper)" stroke="var(--rule-hard)"/>
+          <text x="176" y="33" font-size="9.5" font-weight="600" fill="var(--ink)">WORKER 1 (Angle A)</text>
+          <text x="176" y="48" font-size="9" fill="var(--ink-3)">IN → Schema OUT · Cheap</text>
+
+          <rect x="168" y="74" width="152" height="44" fill="var(--paper)" stroke="var(--rule-hard)"/>
+          <text x="176" y="91" font-size="9.5" font-weight="600" fill="var(--ink)">WORKER 2 (Angle B)</text>
+          <text x="176" y="106" font-size="9" fill="var(--ink-3)">IN → Schema OUT · Cheap</text>
+
+          <rect x="168" y="132" width="152" height="44" fill="var(--paper)" stroke="var(--rule-hard)"/>
+          <text x="176" y="149" font-size="9.5" font-weight="600" fill="var(--ink)">WORKER 3 (Angle C)</text>
+          <text x="176" y="164" font-size="9" fill="var(--ink-3)">IN → Schema OUT · Cheap</text>
+
+          <rect x="168" y="190" width="152" height="44" fill="var(--paper)" stroke="var(--rule-hard)"/>
+          <text x="176" y="207" font-size="9.5" font-weight="600" fill="var(--ink)">WORKER N (Worktree)</text>
+          <text x="176" y="222" font-size="9" fill="var(--ink-3)">Isolated · Unique label</text>
+        </g>
+
+        <!-- Fan-in edges -->
+        <line x1="320" y1="38" x2="358" y2="110" stroke="var(--rule-hard)" stroke-width="1.3" marker-end="url(#arr)"/>
+        <line x1="320" y1="96" x2="358" y2="122" stroke="var(--rule-hard)" stroke-width="1.3" marker-end="url(#arr)"/>
+        <line x1="320" y1="154" x2="358" y2="138" stroke="var(--rule-hard)" stroke-width="1.3" marker-end="url(#arr)"/>
+        <line x1="320" y1="212" x2="358" y2="150" stroke="var(--rule-hard)" stroke-width="1.3" marker-end="url(#arr)"/>
+
+        <!-- Stage 3: Plain-Code Reduce -->
+        <rect x="362" y="80" width="144" height="100" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.5"/>
+        <text x="372" y="99" font-size="9.5" font-weight="600" fill="var(--live)">02 REDUCE (CODE)</text>
+        <text x="372" y="115" font-size="10.5" font-weight="600" fill="var(--ink)">0 Tokens · Pure JS/Py</text>
+        <text x="372" y="131" font-size="9.2" fill="var(--ink-2)">• Count Guard (nulls)</text>
+        <text x="372" y="145" font-size="9.2" fill="var(--ink-2)">• Dedupe by source</text>
+        <text x="372" y="159" font-size="9.2" fill="var(--ink-2)">• Chunk(40) batching</text>
+        <text x="372" y="172" font-size="9" fill="var(--signal)">Never pass partial silently</text>
+
+        <line x1="506" y1="130" x2="538" y2="130" stroke="var(--live)" stroke-width="1.6" marker-end="url(#arr-live)"/>
+
+        <!-- Stage 4: Fresh-Context Verifier -->
+        <rect x="542" y="54" width="154" height="132" fill="var(--live-bg)" stroke="var(--live)" stroke-width="1.6"/>
+        <text x="552" y="73" font-size="9.5" font-weight="600" fill="var(--live)">03 VERIFIER NODE</text>
+        <text x="552" y="89" font-size="10.5" font-weight="600" fill="var(--ink)">Fresh Empty Context</text>
+        <text x="552" y="106" font-size="9.2" fill="var(--ink-2)">1. Correct? (Logic)</text>
+        <text x="552" y="120" font-size="9.2" fill="var(--ink-2)">2. Current? (Date)</text>
+        <text x="552" y="134" font-size="9.2" fill="var(--ink-2)">3. Real Source? (URL)</text>
+        <text x="552" y="152" font-size="9.5" font-weight="600" fill="var(--live)">Pass: ≥2/3 Majority</text>
+        <text x="552" y="167" font-size="9" fill="var(--signal)">Fail: Drop before merge</text>
+
+        <!-- Anchor Box below Verifier -->
+        <rect x="542" y="212" width="154" height="50" fill="var(--signal-bg)" stroke="var(--signal)" stroke-width="1.4" stroke-dasharray="4 2"/>
+        <text x="552" y="230" font-size="9.5" font-weight="600" fill="var(--signal)">EXTERNAL ANCHORS</text>
+        <text x="552" y="244" font-size="9" fill="var(--ink)">Real tests · Live DB/MCP</text>
+        <text x="552" y="256" font-size="9" fill="var(--ink)">Frozen rules (preToolUse)</text>
+        <line x1="619" y1="212" x2="619" y2="188" stroke="var(--signal)" stroke-width="1.4" stroke-dasharray="3 2" marker-end="url(#arr-sig)"/>
+
+        <line x1="696" y1="120" x2="722" y2="120" stroke="var(--live)" stroke-width="1.6" marker-end="url(#arr-live)"/>
+
+        <!-- Stage 5: Human Gate + Synthesize -->
+        <rect x="726" y="72" width="104" height="96" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.5"/>
+        <text x="735" y="91" font-size="9.5" font-weight="600" fill="var(--ink-3)">04 GATE &amp; SYNTH</text>
+        <text x="735" y="108" font-size="10.5" font-weight="600" fill="var(--ink)">ctx.pause()</text>
+        <text x="735" y="124" font-size="9.2" fill="var(--ink-2)">Strong Model</text>
+        <text x="735" y="138" font-size="9.2" fill="var(--ink-2)">Ranked output</text>
+        <text x="735" y="154" font-size="9" font-weight="600" fill="var(--live)">Verified only</text>
+      </svg>
+      <div class="foot"><b>Core invariant:</b> Worker chats never enter the Verifier or Synthesizer context. Only schema-validated JSON findings cross an edge<sup><a href="#fn1">[1]</a></sup>.</div>
+    </div>
+
+    <!-- 5 CORE RULES SEQUENCE -->
+    <div class="seq">
+      <div class="sq">
+        <div class="n">RULE 01</div>
+        <div class="t">Node Contract</div>
+        <p>One job, explicit <code>IN</code>, schema-enforced <code>OUT</code>. Free text is rejected and retried so nodes are wire-able without a human<sup><a href="#fn1">[1]</a></sup>.</p>
+      </div>
+      <div class="sq">
+        <div class="n">RULE 02</div>
+        <div class="t">Fake-Edge Test</div>
+        <p>Ask: <i>“Does step B need step A's output?”</i> If no data crosses the arrow, cut the edge and run them concurrently<sup><a href="#fn1">[1]</a></sup>.</p>
+      </div>
+      <div class="sq">
+        <div class="n">RULE 03</div>
+        <div class="t">Code Reduce</div>
+        <p>Deduplicate, filter nulls, assert counts (<code>jobs.length === results.length</code>), and batch in plain code—spending zero LLM tokens<sup><a href="#fn1">[1]</a></sup>.</p>
+      </div>
+      <div class="sq">
+        <div class="n">RULE 04</div>
+        <div class="t">Clean Verifier</div>
+        <p>Never let the maker check its own work. Spawn 3 fresh-context skeptics (correct / current / real source) decided by majority vote<sup><a href="#fn1">[1]</a></sup>.</p>
+      </div>
+      <div class="sq">
+        <div class="n">RULE 05</div>
+        <div class="t">Truth Anchors</div>
+        <p>Topology alone produces internal consistency, not truth. Tie graphs to real tests, live records, and frozen hook rules<sup><a href="#fn1">[1]</a></sup>.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 2: CLAUDE CODE VS GITHUB COPILOT CLI -->
+  <section class="sec" id="sec-parity">
+    <div class="sec-h">
+      <h2>02 · Is It Claude Code Only? No — GitHub Copilot CLI Has First-Class Native Support</h2>
+      <span class="note">CLAUDE CODE "WORKFLOW" KEYWORD VS COPILOT CLI v1.0.99-0</span>
+    </div>
+
+    <div class="fig">
+      <div class="big"><span class="ok">3</span> Native Ways</div>
+      <div class="cap">Kopadze's §10 describes Claude Code's <code>workflow</code> trigger, where the agent writes a JS orchestration script so passing results between sub-agents costs zero main-window tokens<sup><a href="#fn1">[1]</a></sup>. <b>GitHub Copilot CLI (`v1.0.99-0`) natively implements this exact architecture</b>—and adds durable SQLite step journaling, resumable checkpoints, and explicit budget ceilings<sup><a href="#fn5">[5]</a><a href="#fn6">[6]</a></sup>.</div>
+    </div>
+
+    <div class="matrix">
+      <table>
+        <thead>
+          <tr>
+            <th>Capability</th>
+            <th>Claude Code (§10 of Kopadze Article)<sup><a href="#fn1">[1]</a></sup></th>
+            <th>GitHub Copilot CLI (v1.0.99-0 — Your Harness)<sup><a href="#fn5">[5]</a><a href="#fn6">[6]</a></sup></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>1. Ad-Hoc Session Workflow (Write &amp; Run Script on the Fly)</th>
+            <td>Start prompt with the word <code>workflow</code>; Claude writes a JS orchestration script and runs subagents.</td>
+            <td class="is-live"><b>Built-in Tools:</b> Agent calls <code>dynamic_workflows_manage({ operation: "author", meta, run })</code> to author a self-contained JS workflow in session memory, then calls <code>run_dynamic_workflow({ name, args })</code>.</td>
+          </tr>
+          <tr>
+            <th>2. Saved Reusable Workflow ("Launch by Name")</th>
+            <td>Save a successful workflow run as a custom slash command.</td>
+            <td class="is-live"><b>Extension SDK:</b> Save <code>.github/extensions/&lt;name&gt;/extension.mjs</code> (or <code>~/.copilot/extensions/</code>) using <code>defineWorkflow</code> + <code>joinSession({ workflows })</code>. Run via <code>run_dynamic_workflow</code>, <code>/workflows</code>, or CLI <code>copilot --experimental workflow run &lt;name&gt;</code><sup><a href="#fn18">[18]</a></sup>.</td>
+          </tr>
+          <tr>
+            <th>3. Conversational Fleet Waves (No JS Script Required)</th>
+            <td>Prompt subagents in parallel batches.</td>
+            <td class="is-live"><b><code>/fleet</code> + <code>@vijay-agent</code>:</b> Models the DAG in session SQLite (<code>todos</code> + <code>todo_deps</code>) and dispatches parallel <code>task(mode="sync")</code> waves<sup><a href="#fn22">[22]</a></sup>.</td>
+          </tr>
+          <tr>
+            <th>Enforced Node JSON Schemas</th>
+            <td><code>agent({ task, schema: Finding })</code> (retries on free text).</td>
+            <td class="is-live"><code>ctx.agent(prompt, { label, schema })</code> — runtime parses JSON and <b>automatically retries once</b> on mismatch<sup><a href="#fn6">[6]</a></sup>.</td>
+          </tr>
+          <tr>
+            <th>Parallel Fan-Out &amp; Streaming DAGs</th>
+            <td><code>parallel(jobs)</code> barrier.</td>
+            <td class="is-live"><b>Both:</b> <code>ctx.parallel(thunks)</code> (barrier up to 4,096 items) <b>and</b> <code>ctx.pipeline(items, ...stages)</code> (barrier-free per-item streaming DAG)<sup><a href="#fn6">[6]</a><a href="#fn17">[17]</a></sup>.</td>
+          </tr>
+          <tr>
+            <th>Durable Replay &amp; Human Gate</th>
+            <td>Prompt-level human gate.</td>
+            <td class="is-live"><b>SQLite-Journaled:</b> <code>ctx.step("key-v1", fn)</code> caches step outputs; <code>ctx.pause("gate-v1")</code> halts the run and replays from SQLite on resume without re-running completed agents<sup><a href="#fn6">[6]</a><a href="#fn18">[18]</a></sup>.</td>
+          </tr>
+          <tr>
+            <th>Hard &amp; Soft Resource Caps</th>
+            <td>Prompt instruction (<code>CAP: 20 files</code>).</td>
+            <td class="is-live"><b>Runtime Enforced:</b> <code>limits: { maxConcurrentSubagents, maxTotalSubagents, timeoutSeconds, maxAiCredits }</code>. Resumable on <code>workflow_limit_reached</code><sup><a href="#fn5">[5]</a><a href="#fn6">[6]</a></sup>.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- SECTION 3: EXACT COPY-PASTE PROMPTS -->
+  <section class="sec" id="sec-prompts">
+    <div class="sec-h">
+      <h2>03 · Copy-Paste Prompts: How to Trigger &amp; Create Graph Workflows in GitHub Copilot CLI</h2>
+      <span class="note">KOPADZE ORIGINAL PROMPTS VS GITHUB COPILOT CLI ADAPTATIONS</span>
+    </div>
+
+    <p style="margin:0 0 10px;color:var(--ink-2)">In Kopadze's article (`§10`, Image 5), Claude Code triggers a dynamic workflow when you start the prompt with <code>workflow</code> or <code>Run as a dynamic workflow</code><sup><a href="#fn1">[1]</a></sup>. In <b>GitHub Copilot CLI</b>, the tool contract for <code>dynamic_workflows_manage</code> and <code>run_dynamic_workflow</code> states: <i>“Use only when the user explicitly requests a workflow... Always call with operation 'guide' before authoring any workflow code.”</i> Below are the exact prompts side by side.</p>
+
+    <!-- MASTER TRIGGER COMPARISON -->
+    <div class="prompt-grid">
+      <div class="prompt-card claude">
+        <div class="code-head">
+          <div>Kopadze's Original Prompt (Claude Code Image 5)<sup><a href="#fn1">[1]</a></sup></div>
+          <span>Keyword Trigger</span>
+        </div>
+        <pre>Run as a dynamic workflow.
+Break the job into the right number of parallel sub-agents.
+Spawn them.
+They work independently.
+You collect, verify, and merge everything
+into a single final answer.</pre>
+      </div>
+
+      <div class="prompt-card">
+        <div class="code-head">
+          <div>GitHub Copilot CLI Adaptation — Mode 1 (Ad-Hoc Session Workflow)</div>
+          <span>Explicit Tool Trigger · 0 Main-Context Bloat</span>
+        </div>
+        <pre>Author and run a dynamic workflow for this task using `dynamic_workflows_manage` (call `guide` first, then `author`) and `run_dynamic_workflow`:
+1. FAN OUT: Use `ctx.parallel` to spawn `ctx.agent` workers with unique `label`s and an enforced JSON `schema`.
+2. REDUCE: In a durable `ctx.step("reduce-v1", ...)`, assert the fan-in count guard (`null` check) and deduplicate in plain JS.
+3. VERIFY: Use `ctx.pipeline` to check each surviving claim with a fresh-context verifier (`agent: "rubber-duck"`, schema verdict `keep|drop`).
+4. SYNTHESIZE: Merge only verified survivors into the final JSON output.</pre>
+      </div>
+    </div>
+
+    <div class="prompt-grid" style="margin-top:14px">
+      <div class="prompt-card">
+        <div class="code-head">
+          <div>GitHub Copilot CLI Adaptation — Mode 2 (Save as Reusable Extension)</div>
+          <span>Persistent `.github/extensions/&lt;name&gt;/extension.mjs`</span>
+        </div>
+        <pre>Create a reusable GitHub Copilot CLI workflow extension in `.github/extensions/&lt;workflow-name&gt;/extension.mjs` (and a testable `workflow.mjs` module) using `defineWorkflow` and `joinSession({ workflows })` from `@github/copilot-sdk/extension`.
+Implement the Diamond Pattern:
+- `ctx.parallel` worker fan-out with unique `label`s and JSON `schema`
+- `ctx.step` plain-code deduplication and `null` fan-in count guard
+- Fresh-context verifier stage (`ctx.pipeline`)
+- Optional `ctx.pause` human gate before final synthesis
+- Include an offline `node --test` test file with a mock `ctx`, then call `extensions_reload`.</pre>
+      </div>
+
+      <div class="prompt-card">
+        <div class="code-head">
+          <div>GitHub Copilot CLI Adaptation — Mode 3 (Zero-JS `/fleet` Wave Prompt)</div>
+          <span>Works with MCP Tools (`crm`, `mailbox`, `vault`)</span>
+        </div>
+        <pre>/fleet Execute this as a Diamond Graph using `@vijay-agent`:
+1. Fake-Edge Test: register all independent worker slices, a reduce step, a fresh-context verifier step, and synthesis in the session SQLite `todos` and `todo_deps` tables.
+2. Wave 1 (Fan-Out): dispatch all ready worker todos in parallel `task` calls (`mode: "sync"`). Each worker must return a JSON block with `claim`, `source`, `date`, and `verdict`.
+3. Wave 2 (Count Guard &amp; Reduce): query SQLite `todos` to verify 0 missing nodes, then deduplicate claims.
+4. Wave 3 (Fresh Verifier): dispatch `rubber-duck` or `triage-team:skeptic` with ONLY the reduced claims (no worker transcripts) before synthesizing.</pre>
+      </div>
+    </div>
+
+    <div class="sec-h" style="margin-top:28px">
+      <h2>Architectural Decision: Why Coalesce into One Skill + Spec Table (Not a "Vijay-Diamond" Agent or 6 Separate Prompts)</h2>
+      <span class="note">SKILL TRIGGER + SPECS/GRAPH-SPECS.MD + PARAMETERIZED WORKFLOW.MJS</span>
+    </div>
+
+    <p style="margin:0 0 10px;color:var(--ink-2)">You do <b>not</b> need 6 separate copy-paste prompts, and you should <b>not</b> create a separate <code>Vijay-Diamond</code> agent. All 6 of Kopadze's <code>▸ GRAPH SPEC</code> templates are just parameter variations over <b>three graph topologies</b> (Single Diamond, Double-Diamond with mid-gate, and Cyclic Discovery Loop). In your workspace, the right architecture mirrors your existing <code>demo-stack/SKILL.md</code> → <code>stacks/stacks.md</code> pattern<sup><a href="#fn18">[18]</a><a href="#fn23">[23]</a></sup>:</p>
+
+    <div class="matrix">
+      <table>
+        <thead>
+          <tr>
+            <th>Design Option</th>
+            <th>Copilot CLI Tool-Gate Compliance</th>
+            <th>Context &amp; Maintenance Cost</th>
+            <th>Interaction with Your Agents &amp; <code>el-mds</code> Hook</th>
+            <th>Verdict</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>Option A: New <code>Vijay-Diamond</code> Agent (<code>.agent.md</code>)</th>
+            <td class="is-risk"><b>Weak:</b> <code>run_dynamic_workflow</code> schema states: <i>“Use only when user explicitly requests a workflow, or when a <b>skill or slash command</b> instructs you to.”</i> Agent files are not skills.</td>
+            <td class="is-risk">Duplicates <code>vijay-agent.agent.md</code> &amp; <code>vijay-caveman.agent.md</code>; requires separate model config in <code>settings.json</code>.</td>
+            <td>Creates persona sprawl; subagents inside a workflow can already use <code>agent: "Vijay Agent"</code><sup><a href="#fn5">[5]</a></sup>.</td>
+            <td class="is-risk">❌ Skip</td>
+          </tr>
+          <tr>
+            <th>Option B: Stuff All 6 Specs Inside <code>vijay-agent.agent.md</code></th>
+            <td class="is-risk"><b>Weak:</b> Still lacks a slash-command/skill trigger to authorize <code>run_dynamic_workflow</code>.</td>
+            <td class="is-risk">Loads ~200 lines of spec tables on <b>every</b> turn (even 1-shot lookups), violating progressive disclosure<sup><a href="#fn13">[13]</a></sup>.</td>
+            <td>Violates your own <code>demo-orchestrator.agent.md:189</code> rule (keep routing tables out of the agent file)<sup><a href="#fn23">[23]</a></sup>.</td>
+            <td class="is-risk">❌ Skip</td>
+          </tr>
+          <tr>
+            <th>Option C: Thin <code>diamond-workflow</code> Skill + <code>graph-specs.md</code> + Parameterized <code>.mjs</code> Engine</th>
+            <td class="is-live"><b>100% Native:</b> Invoking <code>/diamond-workflow</code> (a user-invocable Skill) explicitly authorizes <code>run_dynamic_workflow</code> per CLI tool rules<sup><a href="#fn6">[6]</a><a href="#fn18">[18]</a></sup>.</td>
+            <td class="is-live"><b>Zero idle tokens:</b> Skill + spec table load only when triggered. Coalesces all 6 prompts into 1 table.</td>
+            <td class="is-live"><code>el-mds</code> (`extension.mjs:8`) gates <code>task</code> and <code>run_dynamic_workflow</code> identically (`DENIED_FAST_DIRECT_TOOLS`). Worker nodes call <code>agent: "Vijay Agent"</code><sup><a href="#fn20">[20]</a></sup>.</td>
+            <td class="is-live">✅ Build This</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="prompt-grid" style="margin-top:14px">
+      <div class="prompt-card">
+        <div class="code-head">
+          <div>1. Thin Skill Trigger: ~/.copilot/skills/diamond-workflow/SKILL.md</div>
+          <span>Authorizes Workflow + Selects Spec</span>
+        </div>
+        <pre>---
+name: diamond-workflow
+description: &gt;-
+  Run Kopadze Graph Engineering workflows (Diamond research, route/security
+  audit, content brief, double-diamond launch kit, refactor sweep, or
+  discovery loop) via Copilot Dynamic Workflows or /fleet waves.
+user-invocable: true
+---
+# Diamond WorkflowRouter
+1. Read `specs/graph-specs.md` to match the user's intent to one of the 6 specs:
+   `route-audit` | `research-desk` | `content-brief` | `gtm-kit` | `refactor-sweep` | `discovery-loop`.
+2. If the task requires main-session MCPs (`crm`, `mailbox`, `analytics`), execute via SQLite `todos` + `todo_deps` and parallel `task` waves.
+3. Otherwise, invoke `run_dynamic_workflow({ name: "diamond-engine", args: { spec, goal, targets, cap, pauseAtGate } })` (or author it via `dynamic_workflows_manage` if not yet registered).</pre>
+      </div>
+
+      <div class="prompt-card">
+        <div class="code-head">
+          <div>2. Coalesced Spec Table: ~/.copilot/skills/diamond-workflow/specs/graph-specs.md</div>
+          <span>Replaces 6 Copy-Paste Prompts</span>
+        </div>
+        <pre>| Spec ID | Topology | Fan-Out Unit | Verifier Lens | Default Cap | Human Gate |
+|---|---|---|---|---|---|
+| `route-audit` | `diamond` | 1 agent/file (`src/routes/*`) | `code-review` (missing auth) | 20 files | On fail / post-report |
+| `research-desk` | `diamond` | 5 orthogonal angles | 3-skeptic (`correct`,`current`,`source`) | 5 angles | `pauseBeforeSynthesis` |
+| `content-brief` | `diamond` | 3 jobs (coverage, Qs, gaps) | Fact-checker (unsourced claims) | 3 jobs | Never auto-publish |
+| `gtm-kit` | `double-diamond` | 3 research → doc → 3 writers | Asset vs positioning doc check | 6 jobs | **Mid-gate** after doc |
+| `refactor-sweep` | `diamond` | 1 agent/file (&gt;100 LOC fn) | Fresh critic + worktree test | 50 files | Report count guard |
+| `discovery-loop` | `cyclic-loop` | Parallel finders per round | Stop after 2 empty rounds | 24 total | Severity report gate |</pre>
+      </div>
+    </div>
+
+    <!-- ALL 6 READY GRAPH SPECS ADAPTED FOR COPILOT CLI -->
+    <div class="sec-h" style="margin-top:28px">
+      <h2>Reference: Individual Kopadze "▸ GRAPH SPEC" Prompts (When Running Ad-Hoc Without the Skill)</h2>
+      <span class="note">KOPADZE §10–§11 (LINES 333–465) · PASTE DIRECTLY INTO COPILOT CLI</span>
+    </div>
+
+    <div class="prompt-grid">
+      <div class="prompt-card">
+        <div class="code-head">
+          <div>Spec 1 · Route Auth Audit (§10, L333–344)<sup><a href="#fn1">[1]</a></sup></div>
+          <span>Dynamic Workflow Prompt</span>
+        </div>
+        <pre>Author and run a dynamic workflow (`dynamic_workflows_manage` → `run_dynamic_workflow`):
+▸ GRAPH SPEC
+GOAL: audit every route file under src/routes/ for missing auth checks
+FAN OUT: `ctx.parallel` — one `ctx.agent` per file (unique label `route:${i}`, JSON schema `{file, missingAuthRoutes[]}`)
+VERIFY: `ctx.pipeline` — independent `code-review` checker on each finding in a fresh context
+CAP: 20 files on this first run
+ON FAIL: in `ctx.step("guard-v1")`, flag any file where `result === null`; never skip silently
+REPORT: one merged list of routes missing auth</pre>
+      </div>
+
+      <div class="prompt-card">
+        <div class="code-head">
+          <div>Spec 2 · Decision-Grade Research Desk (§11, L373–385)<sup><a href="#fn1">[1]</a></sup></div>
+          <span>Dynamic Workflow or `/fleet` Prompt</span>
+        </div>
+        <pre>Author and run a dynamic workflow (`dynamic_workflows_manage` → `run_dynamic_workflow`):
+▸ GRAPH SPEC
+GOAL: decision-grade research on [your question]
+FAN OUT: `ctx.parallel` across 5 distinct angles, one `research` subagent per angle
+RULE: enforce JSON `schema` requiring `sourceUrl`, `date`, and `quote` per finding
+REDUCE: deduplicate by source in `ctx.step("reduce-v1")` and check for `null` workers
+VERIFY: `rubber-duck` skeptic attacks each finding in fresh context; drop what fails
+MERGE: survivors into one report ranked by confidence, saved to `research-report.md`
+HUMAN GATE: call `ctx.pause("review-report-v1")` before any follow-up action</pre>
+      </div>
+
+      <div class="prompt-card">
+        <div class="code-head">
+          <div>Spec 3 · Ranking-Ready Content / Brief (§11, L391–405)<sup><a href="#fn1">[1]</a></sup></div>
+          <span>Dynamic Workflow or `/fleet` Prompt</span>
+        </div>
+        <pre>Author and run a dynamic workflow (`dynamic_workflows_manage` → `run_dynamic_workflow`):
+▸ GRAPH SPEC
+GOAL: one ranking-ready technical brief for [topic]
+PARALLEL JOBS (`ctx.parallel`, run at once):
+  1. what current top-ranking pages/docs cover
+  2. real technical questions engineers ask about this topic
+  3. architectural trade-offs and edge cases those pages skip
+MERGE: combine the three into an outline, then draft the full brief
+VERIFY: fresh-context fact-checker flags every claim lacking a primary source
+SAVE: `drafts/` with flagged claims listed at the top
+HUMAN GATE: never publish or send externally</pre>
+      </div>
+
+      <div class="prompt-card">
+        <div class="code-head">
+          <div>Spec 4 · Double-Diamond Launch / GTM Kit (§11, L411–429)<sup><a href="#fn1">[1]</a></sup></div>
+          <span>Uses Mid-Graph `ctx.pause` Gate</span>
+        </div>
+        <pre>Author and run a dynamic workflow (`dynamic_workflows_manage` → `run_dynamic_workflow`):
+▸ GRAPH SPEC
+GOAL: full launch kit for [product], aimed at [audience]
+PARALLEL JOBS 1 (research via `ctx.parallel`):
+  1. buyer profile &amp; exact terminology  2. channels/communities  3. competitor pitches
+MERGE: synthesize into a 1-page positioning doc in `ctx.step("positioning-v1")`
+HUMAN GATE: call `ctx.pause("approve-positioning-v1")` and show me the doc before writing
+PARALLEL JOBS 2 (writing from approved doc via `ctx.parallel`):
+  1. landing page copy  2. launch posts  3. customer outreach messages
+VERIFY: fresh-context checker compares every asset against the positioning doc
+SAVE: `launch-kit/`</pre>
+      </div>
+
+      <div class="prompt-card">
+        <div class="code-head">
+          <div>Spec 5 · Refactor Sweep (§11, L435–446)<sup><a href="#fn1">[1]</a></sup></div>
+          <span>Parallel File Sweep + Count Guard</span>
+        </div>
+        <pre>Author and run a dynamic workflow (`dynamic_workflows_manage` → `run_dynamic_workflow`):
+▸ GRAPH SPEC
+GOAL: find every function over 100 lines and propose a surgical refactor for each
+FAN OUT: `ctx.parallel` — one `ctx.agent` per file with JSON schema `{file, fnName, lines, proposal}`
+VERIFY: fresh-context `code-review` agent checks each proposed refactor for regressions
+DEDUPE: plain-code deduplication in `ctx.step("dedupe-v1")`
+CAP: 50 files on this first run
+REPORT: explicitly report `returnedFiles / totalFiles` so no file fails silently</pre>
+      </div>
+
+      <div class="prompt-card">
+        <div class="code-head">
+          <div>Spec 6 · Discovery Loop of Unknown Size (§11, L452–465)<sup><a href="#fn1">[1]</a></sup></div>
+          <span>Cyclic `for` Loop + Convergence Break</span>
+        </div>
+        <pre>Author and run a dynamic workflow (`dynamic_workflows_manage` → `run_dynamic_workflow`):
+▸ GRAPH SPEC
+GOAL: hunt this repo for [security issues / broken error handling / dead code]
+LOOP: run a `for` loop in `run(ctx)` up to 5 rounds:
+  - FAN OUT: run parallel finder subagents with unique labels `finder:r${round}:${i}`
+  - DEDUPE: filter out findings already in the cumulative `seen` Map in plain JS
+  - VERIFY: fresh-context `rubber-duck` verifier on new survivors
+  - STOP CONDITION: break when 2 consecutive rounds find 0 new verified issues
+CAP: set `limits: { maxTotalSubagents: 25 }`
+REPORT: final verified list ranked by severity</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 4: MAPPING TO GITHUB COPILOT HARNESS -->
+  <section class="sec" id="sec-mapping">
+    <div class="sec-h">
+      <h2>04 · Architectural Mapping: Kopadze Primitives → GitHub Copilot Harness</h2>
+      <span class="note">COPILOT SDK v1.0.99-0 · EXECUTION GRAPH + KNOWLEDGE GRAPH</span>
+    </div>
+
+    <div class="matrix">
+      <table>
+        <thead>
+          <tr>
+            <th>Kopadze Graph Primitive</th>
+            <th>Mode A: Programmatic SDK (<code>defineWorkflow</code>)</th>
+            <th>Mode B: Declarative Harness (<code>.agent.md</code> + Tools)</th>
+            <th>Failure Mode Prevented</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>Bounded Node (<code>agent()</code>)</th>
+            <td><code>ctx.agent(prompt, { label, schema, model, reasoningEffort, agent })</code><sup><a href="#fn5">[5]</a><a href="#fn6">[6]</a></sup></td>
+            <td><code>task({ name, agent_type, prompt })</code> with model routing in <code>~/.copilot/settings.json</code><sup><a href="#fn7">[7]</a></sup></td>
+            <td>Context pollution across unrelated tasks; model overspend on mechanical nodes.</td>
+          </tr>
+          <tr>
+            <th>Node Contract (<code>SCHEMA: enforced</code>)</th>
+            <td><code>schema: WorkflowJsonSchema</code> (<code>type</code>, <code>required</code>, <code>enum</code>, <code>const</code>, <code>anyOf</code>). <b>Auto-retries once</b> on mismatch<sup><a href="#fn5">[5]</a><a href="#fn6">[6]</a></sup>.</td>
+            <td>Structured JSON/table return block in prompt + Python/JS validator script<sup><a href="#fn22">[22]</a><a href="#fn26">[26]</a></sup>.</td>
+            <td>Unparseable free-text walls that require a human or LLM to re-interpret.</td>
+          </tr>
+          <tr>
+            <th>Parallel Fan-Out (<code>parallel()</code>)</th>
+            <td><code>await ctx.parallel(thunks)</code> (barrier up to 4,096 items; unique <code>label</code> prevents memoization collapse)<sup><a href="#fn6">[6]</a></sup>.</td>
+            <td>Batch 3–8 <code>task(mode="sync")</code> calls in one turn, or run <code>/fleet</code> waves over SQLite <code>todos</code><sup><a href="#fn22">[22]</a></sup>.</td>
+            <td>Fake-edge latency (serializing independent work).</td>
+          </tr>
+          <tr>
+            <th>Streaming Per-Item DAG</th>
+            <td><code>await ctx.pipeline(items, stage1, stage2)</code> — no barrier between stages; failed item becomes <code>null</code><sup><a href="#fn6">[6]</a><a href="#fn17">[17]</a></sup>.</td>
+            <td>Multi-wave SQLite <code>todo_deps</code> progression<sup><a href="#fn22">[22]</a></sup>.</td>
+            <td>Head-of-line blocking when one item is slow.</td>
+          </tr>
+          <tr>
+            <th>Plain-Code Reduce &amp; Count Guard</th>
+            <td><code>await ctx.step("reduce-v1", () =&gt; ...)</code> checking <code>results.filter(r =&gt; r === null)</code> + dedupe<sup><a href="#fn18">[18]</a></sup>.</td>
+            <td>SQLite query on <code>todos</code> status counts or local Python reducer script<sup><a href="#fn25">[25]</a></sup>.</td>
+            <td class="is-risk">FM3: Silent Node Failure (synthesizing partial sets as complete).</td>
+          </tr>
+          <tr>
+            <th>Layered Fan-In (Batching)</th>
+            <td><code>chunk(results, 40)</code> → parallel batch summarizers → final synthesizer<sup><a href="#fn1">[1]</a></sup>.</td>
+            <td>Wave-based sub-agent batching (5–10 accounts per slice, ~400-word cap)<sup><a href="#fn22">[22]</a></sup>.</td>
+            <td class="is-risk">FM1: Context Collapse at the fan-in merge node.</td>
+          </tr>
+          <tr>
+            <th>Fresh-Context 3-Skeptic Verifier</th>
+            <td><code>ctx.parallel</code> spawning 3 <code>rubber-duck</code> / <code>code-review</code> agents with <code>VERDICT_SCHEMA</code> (≥2/3 keep)<sup><a href="#fn1">[1]</a><a href="#fn17">[17]</a></sup>.</td>
+            <td>Dispatch <code>triage-team:skeptic</code> / <code>rubber-duck</code> passing <b>only</b> the finding, never worker chat<sup><a href="#fn9">[9]</a></sup>.</td>
+            <td>Self-grading bias &amp; hallucinated citations surviving into the final report.</td>
+          </tr>
+          <tr>
+            <th>Human Gate (<code>HUMAN GATE:</code>)</th>
+            <td><code>await ctx.pause("gate-v1")</code> in main flow; resume via <code>/workflows</code> or <code>session.workflow.resume(runId)</code><sup><a href="#fn6">[6]</a><a href="#fn18">[18]</a></sup>.</td>
+            <td><code>ask_user</code> form tool at named gates (<code>DESIGN</code>, <code>PRE-DEMO-VERIFY</code>, <code>GCC-DEPLOY</code>)<sup><a href="#fn23">[23]</a></sup>.</td>
+            <td>Unapproved external writes, deployments, or customer communications.</td>
+          </tr>
+          <tr>
+            <th>Anchors &amp; Frozen Rules</th>
+            <td>Volatile hash steps (<code>{ volatile: true }</code>), test steps, and <code>onPreToolUse</code> / <code>onSubagentStop</code> hooks<sup><a href="#fn5">[5]</a><a href="#fn18">[18]</a></sup>.</td>
+            <td><code>el-mds</code> gate extension, <code>sanitize.py</code> pre-commit hook, and <code>autoresearch</code> metric command<sup><a href="#fn20">[20]</a><a href="#fn21">[21]</a><a href="#fn28">[28]</a></sup>.</td>
+            <td class="is-risk">Reward hacking (modifying tests/benchmarks) &amp; consistent-but-false graphs.</td>
+          </tr>
+          <tr>
+            <th>Knowledge / Skill Graph Navigation</th>
+            <td colspan="2"><code>vault_read(page, hops=1)</code> (<code>NEIGHBOUR_CHAR_CAP = 2000</code>, inline <code>[[wikilinks]]</code> prioritized over <code>## Related</code>) + <code>brain_map(facet)</code> + 20–80 line skill graph concept nodes<sup><a href="#fn8">[8]</a><a href="#fn14">[14]</a></sup>.</td>
+            <td>180 KB hub-page context blowups; flat skill-list descriptions hitting token ceilings.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- SECTION 5: AGENCY WORKSPACE GAP ANALYSIS -->
+  <section class="sec" id="sec-audit">
+    <div class="sec-h">
+      <h2>05 · Audit of Your Current Workspace (C:\workspace\your-workspace)</h2>
+      <span class="note">EVIDENCE FROM COPILOT-SKILLS-REPO · EL-JEV · LONG-TERM-MEMORY · PLUGINS</span>
+    </div>
+
+    <div class="fig">
+      <div class="big"><span class="ok">3</span> Hard · <em>5</em> Soft</div>
+      <div class="cap">Out of 8 Graph Engineering pillars, <b>3 are enforced in code/hooks today</b> (parallel fan-out, <code>hops=1</code> vault graph, and <code>el-mds</code>/<code>sanitize</code> hooks), while <b>5 rely on prose instructions</b> or have zero registered dynamic workflows<sup><a href="#fn8">[8]</a><a href="#fn20">[20]</a><a href="#fn22">[22]</a></sup>.</div>
+    </div>
+
+    <div class="bars" role="img" aria-label="Maturity bar chart of Graph Engineering primitives in C:\workspace\your-workspace">
+      <div class="brow good">
+        <span>Knowledge Graph (<code>hops=1</code>)</span>
+        <span class="btrack"><span class="bfill" style="width:92%"><span class="tag inv">vault_mcp.py:261-399 · 2,000-char cap · inline links first</span></span></span>
+        <span class="val">92% · Code</span>
+      </div>
+      <div class="brow good">
+        <span>Parallel Fan-Out (<code>task</code> / <code>/fleet</code>)</span>
+        <span class="btrack"><span class="bfill" style="width:85%"><span class="tag inv">vijay-agent.agent.md:32-85 · SQLite todos + todo_deps</span></span></span>
+        <span class="val">85% · Strong</span>
+      </div>
+      <div class="brow">
+        <span>Anchors &amp; Frozen Hooks</span>
+        <span class="btrack"><span class="bfill" style="width:65%"><span class="tag inv">el-mds + sanitize.py</span></span><span class="tag">Missing: frozen test/metric file hook</span></span>
+        <span class="val">65% · Partial</span>
+      </div>
+      <div class="brow">
+        <span>Node Contracts (IN/OUT Schema)</span>
+        <span class="btrack"><span class="bfill" style="width:45%"></span><span class="tag">DBR m365-collector JSON in prose; no ctx.agent schema validation</span></span>
+        <span class="val">45% · Soft</span>
+      </div>
+      <div class="brow">
+        <span>Fresh-Context 3-Skeptic Verifier</span>
+        <span class="btrack"><span class="bfill" style="width:40%"></span><span class="tag">triage-team has 3 roles; doublecheck runs in 1 context (SKILL.md:387)</span></span>
+        <span class="val">40% · Partial</span>
+      </div>
+      <div class="brow hot">
+        <span>Plain-Code Reduce &amp; Count Guard</span>
+        <span class="btrack"><span class="bfill" style="width:20%"></span><span class="tag">LLM orchestrator reduces in prose; no jobs.length - results.length guard</span></span>
+        <span class="val">20% · Gap</span>
+      </div>
+      <div class="brow hot">
+        <span>Worktree Isolation per Worker</span>
+        <span class="btrack"><span class="bfill" style="width:12%"></span><span class="tag">dev-team TDD &amp; autoresearch mutate shared tree</span></span>
+        <span class="val">12% · Gap</span>
+      </div>
+      <div class="brow hot">
+        <span>Registered Dynamic Workflows</span>
+        <span class="btrack"><span class="bfill" style="width:5%"></span><span class="tag">dynamic_workflows_manage(list) → "No workflows registered."</span></span>
+        <span class="val">0 Active · Gap</span>
+      </div>
+    </div>
+    <div class="callout">
+      <span></span>
+      <span class="msg">↑ Key finding: Upgrading prose contracts to <code>defineWorkflow</code> + <code>onPreToolUse</code> frozen-file hooks closes all four red/amber gaps.</span>
+    </div>
+  </section>
+
+  <!-- SECTION 6: BLUEPRINT 1 - DYNAMIC WORKFLOWS -->
+  <section class="sec" id="sec-workflow">
+    <div class="sec-h">
+      <h2>06 · Blueprint 1: Persistent Programmatic Engine (defineWorkflow) Wired to the Skill</h2>
+      <span class="note">SKILL = CONTROL PLANE · EXTENSION.MJS = PERSISTENT 3-TOPOLOGY EXECUTION ENGINE</span>
+    </div>
+
+    <p style="margin:0 0 12px;color:var(--ink-2)">When you build the thin <code>/diamond-workflow</code> Skill (Section 03), <b>you still build the persistent <code>defineWorkflow</code> extension—they are two halves of one system</b><sup><a href="#fn6">[6]</a><a href="#fn18">[18]</a></sup>:
+      <b>(1) The Skill is the Control Plane</b> (authorizes <code>run_dynamic_workflow</code>, maps natural language to one of the 6 <code>specId</code> rows in <code>graph-specs.md</code>, or routes MCP-heavy tasks to SQLite waves);
+      <b>(2) The Persistent <code>extension.mjs</code> is the Execution Plane</b> (pre-registered at CLI startup so Copilot never wastes 30s/2K tokens authoring JS from scratch via <code>dynamic_workflows_manage(author)</code>). By branching on <code>topology</code> (<code>diamond</code> | <code>double-diamond</code> | <code>cyclic-loop</code>), <b>one persistent <code>extension.mjs</code> executes all 6 Kopadze specs</b>:</p>
+
+    <div class="argument">
+      <div>
+        <div class="code-head">
+          <div>~/.copilot/extensions/diamond-workflow/extension.mjs</div>
+          <span>1 Persistent Engine Driving All 6 Specs (Diamond · Double-Diamond · Cyclic Loop)</span>
+        </div>
+        <pre class="live-border">import { defineWorkflow, joinSession } from "@github/copilot-sdk/extension";
+
+const FINDING_SCHEMA = {
+  type: "object", required: ["unit", "claims"],
+  properties: {
+    unit: { type: "string" },
+    claims: { type: "array", items: {
+      type: "object", required: ["claim", "source", "date", "quote"],
+      properties: {
+        claim: { type: "string" }, source: { type: "string" },
+        date: { type: "string" },  quote: { type: "string" }
+      }
+    }}
+  }
+};
+
+const VERDICT_SCHEMA = {
+  type: "object", required: ["lens", "verdict", "reason"],
+  properties: {
+    lens: { type: "string" },
+    verdict: { type: "string", enum: ["keep", "drop"] },
+    reason: { type: "string" }
+  }
+};
+
+// Reusable helper: 1-checker or 3-skeptic fresh-context verifier over a claim list
+async function verifyClaims(ctx, claims, lenses, tag) {
+  const checked = await ctx.pipeline(claims, async (_, c, idx) =&gt; {
+    const votes = await ctx.parallel(
+      lenses.map((lens) =&gt; () =&gt; ctx.agent(
+        `Verify ONLY this isolated finding under lens "${lens}". Try to disprove it:\n${JSON.stringify(c)}`,
+        { label: `verify:${tag}:${idx}:${lens}`, agent: "rubber-duck", reasoningEffort: "high", schema: VERDICT_SCHEMA }
+      ))
+    );
+    const valid = votes.filter((v) =&gt; v !== null);
+    const keeps = valid.filter((v) =&gt; v.verdict === "keep").length;
+    const needed = Math.ceil(lenses.length / 2);
+    return valid.length &gt;= needed &amp;&amp; keeps &gt;= needed ? { ...c, votes: valid } : null;
+  });
+  return checked.filter((c) =&gt; c !== null);
+}
+
+export const diamondEngine = defineWorkflow({
+  meta: {
+    name: "diamond-engine",
+    description: "Persistent 3-topology Kopadze Graph Engine called by /diamond-workflow skill.",
+    phases: [{ title: "FanOut" }, { title: "Reduce" }, { title: "Verify" }, { title: "Gate" }, { title: "Stage2" }, { title: "Synthesize" }],
+    argsSchema: {
+      type: "object",
+      required: ["specId", "topology", "goal", "units"],
+      properties: {
+        specId: { type: "string", enum: ["route-audit", "research-desk", "content-brief", "gtm-kit", "refactor-sweep", "discovery-loop"] },
+        topology: { type: "string", enum: ["diamond", "double-diamond", "cyclic-loop"] },
+        goal: { type: "string" },
+        units: { type: "array", items: { type: "string" } },
+        secondaryUnits: { type: "array", items: { type: "string" } },
+        pauseAtGate: { type: "boolean" }
+      }
+    }
+  },
+  run: async (ctx) =&gt; {
+    const { specId, topology, goal, units, secondaryUnits = [], pauseAtGate } = ctx.args;
+    const lenses = specId === "research-desk" ? ["correct", "current", "real_source"] : ["correct"];
+    ctx.signal?.throwIfAborted();
+
+    // TOPOLOGY C: CYCLIC DISCOVERY LOOP (Spec 6 — stop after 2 consecutive empty rounds)
+    if (topology === "cyclic-loop") {
+      const seen = new Map();
+      let emptyRounds = 0;
+      for (let round = 1; round &lt;= 5 &amp;&amp; emptyRounds &lt; 2; round++) {
+        ctx.phase("FanOut");
+        const raw = await ctx.parallel(
+          units.map((u, i) =&gt; () =&gt; ctx.agent(
+            `Round ${round} discovery on "${u}" for: "${goal}".`,
+            { label: `finder:r${round}:${i}`, agent: "Vijay Agent", schema: FINDING_SCHEMA }
+          ))
+        );
+        ctx.phase("Reduce");
+        const fresh = [];
+        for (const w of raw.filter((r) =&gt; r !== null)) {
+          for (const c of w.claims) {
+            const k = `${c.source.toLowerCase()}::${c.claim.slice(0, 100).toLowerCase()}`;
+            if (!seen.has(k)) { seen.set(k, c); fresh.push(c); }
+          }
+        }
+        ctx.phase("Verify");
+        const verified = fresh.length ? await verifyClaims(ctx, fresh, lenses, `r${round}`) : [];
+        if (verified.length === 0) emptyRounds += 1; else emptyRounds = 0;
+      }
+      ctx.phase("Synthesize");
+      return ctx.agent(`Rank all discovered issues by severity for "${goal}":\n${JSON.stringify([...seen.values()])}`,
+        { label: "synthesize:loop", agent: "Vijay Agent", reasoningEffort: "high" });
+    }
+
+    // TOPOLOGY A &amp; B: DIAMOND &amp; DOUBLE-DIAMOND (Specs 1–5)
+    ctx.phase("FanOut");
+    const raw = await ctx.parallel(
+      units.map((u, i) =&gt; () =&gt; ctx.agent(
+        `Execute unit "${u}" for goal: "${goal}". Cite source, date, and verbatim quote.`,
+        { label: `worker:w1:${i}`, agent: "Vijay Agent", schema: FINDING_SCHEMA }
+      ))
+    );
+
+    ctx.phase("Reduce");
+    const reduced = await ctx.step("reduce-w1-v1", () =&gt; {
+      const missing = units.filter((_, i) =&gt; raw[i] === null);
+      if (raw.length - missing.length &lt; Math.ceil(units.length / 2)) {
+        throw new Error(`Fan-in count guard halted run: ${missing.length}/${units.length} workers returned null.`);
+      }
+      const seen = new Map();
+      for (const w of raw.filter((r) =&gt; r !== null)) {
+        for (const c of w.claims) {
+          const k = `${c.source.toLowerCase()}::${c.claim.slice(0, 100).toLowerCase()}`;
+          if (!seen.has(k)) seen.set(k, { ...c, unit: w.unit });
+        }
+      }
+      return { returnedUnits: units.length - missing.length, totalUnits: units.length, claims: [...seen.values()] };
+    });
+
+    ctx.phase("Verify");
+    const survivors = await verifyClaims(ctx, reduced.claims, lenses, "w1");
+    await ctx.step("survivors-w1-v1", () =&gt; survivors);
+
+    // TOPOLOGY B: DOUBLE-DIAMOND MID-GATE + WAVE 2 (Spec 4 — GTM / Launch Kit)
+    if (topology === "double-diamond") {
+      const posDoc = await ctx.step("positioning-doc-v1", () =&gt;
+        ctx.agent(`Draft 1-page positioning doc for "${goal}" from:\n${JSON.stringify(survivors)}`,
+          { label: "merge:positioning-doc", agent: "Vijay Agent" })
+      );
+      ctx.phase("Gate");
+      await ctx.pause("approve-positioning-v1"); // Mid-graph human gate
+      ctx.phase("Stage2");
+      const assets = await ctx.parallel(
+        secondaryUnits.map((asset, i) =&gt; () =&gt; ctx.agent(
+          `Write asset "${asset}" strictly aligned to positioning doc:\n${ JSON.stringify(posDoc) }`,
+          { label: `writer:w2:${i}`, agent: "Vijay Agent" }
+        ))
+      );
+      return { specId, positioningDoc: posDoc, assets: assets.filter((a) =&gt; a !== null) };
+    }
+
+    // TOPOLOGY A: SINGLE DIAMOND HUMAN GATE + FINAL SYNTHESIS
+    ctx.phase("Gate");
+    if (pauseAtGate) await ctx.pause("approve-survivors-v1");
+
+    ctx.phase("Synthesize");
+    return ctx.agent(
+      `Synthesize final report (${reduced.returnedUnits}/${reduced.totalUnits} units returned) for "${goal}":\n${JSON.stringify(survivors)}`,
+      { label: "synthesize:final", agent: "Vijay Agent", reasoningEffort: "high" }
+    );
+  }
+});
+
+await joinSession({ workflows: [diamondEngine] });</pre>
+      </div>
+
+      <aside class="rail">
+        <h3>Why Keep Both Skill + <code>.mjs</code>?</h3>
+        <ul>
+          <li><b>0s Startup vs. 30s Authoring:</b> A persistent <code>extension.mjs</code> is pre-registered at CLI launch. You skip <code>dynamic_workflows_manage(author)</code> code-generation overhead on every run<sup><a href="#fn6">[6]</a></sup>.</li>
+          <li><b>Safe from <code>hook-guard.json</code>:</b> <code>plugin_extensions.py:79-92</code> only disables extensions inside <code>~/.copilot/installed-plugins/*</code>. User extensions in <code>~/.copilot/extensions/</code> stay active permanently<sup><a href="#fn20">[20]</a></sup>.</li>
+          <li><b>Version-Control in One Place:</b> Since <code>copilot-skills-repo</code> only tracks skills, store the canonical <code>extension.mjs</code> inside <code>copilot-skills-repo/diamond-workflow/extension/</code> and copy/junction it to <code>~/.copilot/extensions/diamond-workflow/</code> (same pattern as <code>el-mds</code>).</li>
+          <li><b>Uses Your Persona:</b> Every worker node passes <code>agent: "Vijay Agent"</code> so subagents inherit your standing technical perspective without a duplicate agent file<sup><a href="#fn5">[5]</a><a href="#fn22">[22]</a></sup>.</li>
+        </ul>
+      </aside>
+    </div>
+  </section>
+
+  <!-- SECTION 7: BLUEPRINT 2 & 3 - DECLARATIVE AGENTS, WORKTREES & HOOKS -->
+  <section class="sec" id="sec-agent">
+    <div class="sec-h">
+      <h2>07 · Blueprint 2 &amp; 3: SQLite DAGs, Worktree Isolation &amp; Frozen Rule Hooks</h2>
+      <span class="note">DECLARATIVE WAVES + UNBYPASSABLE HARNESS ANCHORS</span>
+    </div>
+
+    <div class="say">
+      <div>
+        <h3 style="color:var(--ink)">A · SQLite DAG Scheduler + Fan-In Count Guard</h3>
+        <p style="font-size:13px;color:var(--ink-2);margin:0 0 8px">When orchestrating via <code>task</code> or <code>/fleet</code>, wire true dependencies in <code>todos</code> / <code>todo_deps</code> and run an arithmetic count guard before synthesis<sup><a href="#fn22">[22]</a></sup>:</p>
+        <pre>-- 1. Wire Diamond edges in session SQLite
+INSERT INTO todos (id, title, description, status) VALUES
+  ('w-usage', 'Pull usage trend', 'IN: AccountId. OUT: JSON', 'pending'),
+  ('w-pipe',  'Pull CRM pipe',    'IN: AccountId. OUT: JSON', 'pending'),
+  ('w-notes', 'Pull meeting notes','IN: AccountId. OUT: JSON', 'pending'),
+  ('reduce', 'Count guard + dedupe', 'Plain SQL/Py',  'pending'),
+  ('verify', '3-skeptic audit', 'Fresh context',      'pending');
+
+INSERT INTO todo_deps (todo_id, depends_on) VALUES
+  ('reduce', 'w-usage'), ('reduce', 'w-pipe'), ('reduce', 'w-notes'),
+  ('verify', 'reduce');
+
+-- 2. Fan-In Count Guard Query (halt if missing &gt; 0)
+SELECT COUNT(*) AS expected,
+  SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) AS done,
+  SUM(CASE WHEN status!='done' THEN 1 ELSE 0 END) AS missing
+FROM todos WHERE id LIKE 'w-%';</pre>
+      </div>
+      <div>
+        <h3 style="color:var(--ink)">B · Worktree Isolation for Parallel Code Workers</h3>
+        <p style="font-size:13px;color:var(--ink-2);margin:0 0 8px">To prevent Kopadze's <b>Failure Mode 2 (False Independence)</b> when running parallel <code>dev-team:coder</code> or <code>autoresearch</code> tasks, isolate each worker in a git worktree<sup><a href="#fn1">[1]</a><a href="#fn17">[17]</a></sup>:</p>
+        <pre># 1. Create isolated git worktree per parallel worker
+$tag = "graph-$(Get-Date -Format 'HHmmss')"
+$slices = @("auth-fix", "api-schema", "ui-table")
+foreach ($s in $slices) {
+  git worktree add -b "$tag/$s" "$env:TEMP\$tag-$s" HEAD
+}
+
+# 2. Dispatch parallel `task` calls — each scoped
+#    exclusively to "$env:TEMP\$tag-$s".
+
+# 3. Anchor Gate: run tests in each worktree, merge
+#    only green branches, then remove worktrees:
+foreach ($s in $slices) {
+  git worktree remove "$env:TEMP\$tag-$s" --force
+}</pre>
+      </div>
+    </div>
+
+    <div class="code-head" style="margin-top:16px">
+      <div>.github/extensions/graph-anchors/extension.mjs (Merged into diamond-workflow/extension.mjs)</div>
+      <span>Frozen Test/Metric Files (onPreToolUse) + Subagent Citation Gate (onSubagentStop)</span>
+    </div>
+    <pre class="risk-border">import { joinSession } from "@github/copilot-sdk/extension";
+
+const FROZEN_PATHS = [
+  /(?:^|[\\/])tests?[\\/].*\.(?:test|spec)\.[jt]sx?$/i,
+  /(?:^|[\\/])benchmark[\\/]/i,
+  /\.github[\\/]hooks[\\/]/i,
+];
+
+await joinSession({
+  hooks: {
+    // ANCHOR 1: Frozen Rules — block coder/optimizer agents from editing test or benchmark files
+    onPreToolUse: async (input) =&gt; {
+      if (process.env.COPILOT_FREEZE_TESTS !== "1") return undefined;
+      const tool = String(input?.toolName || "");
+      const path = String(input?.toolArgs?.path || input?.toolArgs?.filePath || "");
+      if ((tool === "edit" || tool === "create" || tool === "apply_patch") &amp;&amp; FROZEN_PATHS.some((rx) =&gt; rx.test(path))) {
+        return {
+          permissionDecision: "deny",
+          permissionDecisionReason: `[Frozen Rule Anchor] "${path}" is locked. Fix the implementation instead of weakening the test/benchmark.`
+        };
+      }
+    },
+    // ANCHOR 2: Subagent Output Verifier — block research subagent from finishing without primary citations
+    onSubagentStop: async (input) =&gt; {
+      const text = String(input?.response || "").trim();
+      if (input?.agentType === "research" &amp;&amp; text.length &gt; 0 &amp;&amp; !/(?:https?:\/\/|:[0-9]+|\bcommit\b)/i.test(text)) {
+        return {
+          decision: "block",
+          reason: "[Verifier Gate] Attach exact file:line numbers, commit SHAs, or URLs (or mark Unknown) before completing."
+        };
+      }
+    }
+  }
+});</pre>
+
+    <!-- EL-JEV / EL-MDS HOOK STACKING & NON-INTERFERENCE -->
+    <div class="sec-h" style="margin-top:28px">
+      <h2>Verified Hook Composition: How <code>diamond-workflow</code> Stacks onto <code>el-jev</code> (<code>el-mds</code>) Without Interference</h2>
+      <span class="note">COPILOT-SDK EXTENSION.JS:11683–15385 · EL-MDS/EXTENSION.MJS:1–296</span>
+    </div>
+
+    <p style="margin:0 0 10px;color:var(--ink-2)">Inspecting the compiled Copilot CLI runtime (<code>copilot-sdk\extension.js:11683-15385</code> and <code>runtime.node</code> hook merger) alongside <code>C:\workspace\your-workspace\el-jev\.github\extensions\el-mds\extension.mjs</code> confirms that <b><code>el-mds</code> and <code>diamond-workflow</code> run in separate forked processes, never collide on tools or hook targets, and stack System-1 + System-2 capabilities</b><sup><a href="#fn5">[5]</a><a href="#fn20">[20]</a></sup>:</p>
+
+    <div class="matrix">
+      <table>
+        <thead>
+          <tr>
+            <th>Hook / Surface</th>
+            <th><code>el-mds</code> Extension (System-1 Gate)<sup><a href="#fn20">[20]</a></sup></th>
+            <th><code>diamond-workflow</code> Extension (System-2 Graph)</th>
+            <th><code>sanitize.json</code> (Command Hook)<sup><a href="#fn21">[21]</a></sup></th>
+            <th>Runtime Composition &amp; Stacking Outcome</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>Registered Tools &amp; Workflows</th>
+            <td><code>tools: [el_mds_decide]</code><br>(0 workflows)</td>
+            <td><code>workflows: [diamondEngine]</code><br>(0 tools)</td>
+            <td>None (JSON hook)</td>
+            <td class="is-live"><b>Zero Collision:</b> Tool names are completely disjoint; both extensions load cleanly at session start.</td>
+          </tr>
+          <tr>
+            <th><code>onUserPromptSubmitted</code></th>
+            <td>Calls <code>127.0.0.1:8787/v1/gate</code> (750ms timeout); injects <code>[el-mds gate]</code> budget text.</td>
+            <td><i>Not registered</i> (returns <code>undefined</code>)</td>
+            <td><i>Not registered</i></td>
+            <td class="is-live"><b>Enforces Kopadze §8 ("Do you need a graph?"):</b> <code>el-mds</code> classifies turn complexity before any graph is invoked.</td>
+          </tr>
+          <tr>
+            <th><code>onPreToolUse</code></th>
+            <td>Inspects <b>only</b> <code>task</code> &amp; <code>run_dynamic_workflow</code>. Denies only when <code>enforceable &amp;&amp; tier==="fast_direct" &amp;&amp; status==="selected" &amp;&amp; exit_code===0</code>; returns <code>undefined</code> otherwise.</td>
+            <td>Inspects <b>only</b> <code>edit</code>, <code>create</code>, <code>apply_patch</code> against <code>FROZEN_PATHS</code> (when <code>COPILOT_FREEZE_TESTS=1</code>); returns <code>undefined</code> on all other tools.</td>
+            <td>Matches <b>only</b> <code>powershell|bash</code> containing <code>git commit|push|pr create</code>.</td>
+            <td class="is-live"><b>100% Partitioned Tool Sets:</b> For any tool call, <b>at most one hook votes</b> while the other two abstain (<code>undefined</code>). Zero conflict.</td>
+          </tr>
+          <tr>
+            <th><code>onSubagentStart</code> &amp; <code>onSubagentStop</code></th>
+            <td><i>Not registered</i> (returns <code>undefined</code>)</td>
+            <td>Injects citation contract on child start; blocks uncited <code>research</code> responses on child stop.</td>
+            <td><i>Not registered</i></td>
+            <td class="is-live"><b>Exclusive to <code>diamond-workflow</code>:</b> Enforces node output quality without touching main-turn <code>el-mds</code> state.</td>
+          </tr>
+          <tr>
+            <th>In-Workflow System-1 Triage (<code>/v1/decide</code>)</th>
+            <td>Exposes local daemon <code>http://127.0.0.1:8787/v1/decide</code> (<code>engine: "md1"</code>, fail-open).</td>
+            <td>Calls <code>fetch("http://127.0.0.1:8787/v1/decide")</code> inside <code>ctx.step("reduce-w1-v1", ..., { volatile: true })</code>.</td>
+            <td>N/A</td>
+            <td class="is-live"><b>Direct Speed/Cost Stack:</b> Uses sub-second System-1 (<code>md1</code>, 0 Copilot credits) inside Reduce to decide whether claims need 1 checker or 3-skeptic verification!</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="code-head" style="margin-top:14px">
+      <div>System-1 (el-jev /v1/decide) + System-2 (diamond-engine) Stacking Helper Inside workflow.mjs</div>
+      <span>Fail-Open 400ms MD1 Call Selecting 1-Checker vs 3-Skeptic Verification</span>
+    </div>
+    <pre class="live-border">// Inside workflow.mjs: fast System-1 triage via local el-jev daemon (fails open if daemon is offline)
+async function selectVerifierLensesViaElJev(goal, claimCount, defaultLenses) {
+  const port = Number(process.env.ELJEV_PORT || "8787");
+  const ctrl = new AbortController();
+  const timer = setTimeout(() =&gt; ctrl.abort(), 600);
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/v1/decide`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        engine: "md1",
+        state: `Goal: ${goal} | Claims to verify: ${claimCount}`,
+        question: {
+          id: "verifier_depth",
+          kind: "choice",
+          options: ["single_checker", "three_skeptics"]
+        }
+      }),
+      signal: ctrl.signal
+    });
+    if (!res.ok) return defaultLenses;
+    const data = await res.json();
+    if (data?.status === "selected" &amp;&amp; data?.decision === "single_checker") {
+      return ["correct"]; // Fast path: 1 fresh-context verifier instead of 3
+    }
+    return defaultLenses;
+  } catch {
+    return defaultLenses; // Fail-open: daemon offline -&gt; use spec's default lenses
+  } finally {
+    clearTimeout(timer);
+  }
+}</pre>
+
+    <!-- ROLLOUT TIMELINE -->
+    <div class="sec-h" style="margin-top:28px">
+      <h2>Implementation Sequence for Your Agency Workspace</h2>
+      <span class="note">RED = CURRENT RISK · GREEN = TARGET STATE</span>
+    </div>
+    <div class="tl" role="img" aria-label="5-step rollout timeline from current prose-only state to full Graph Engineering adoption">
+      <div class="ti bad">
+        <div class="d">STEP 0 · TODAY</div>
+        <div class="dot"></div>
+        <div class="t">Prose-only schemas &amp; single-context doublecheck</div>
+      </div>
+      <div class="ti good">
+        <div class="d">STEP 1 · DAY 1</div>
+        <div class="dot"></div>
+        <div class="t">Add Fake-Edge Test &amp; SQLite Count Guard to vijay-agent</div>
+      </div>
+      <div class="ti now">
+        <div class="d">STEP 2 · WEEK 1</div>
+        <div class="dot"></div>
+        <div class="t">Register diamond-research &amp; graph-anchors extensions</div>
+      </div>
+      <div class="ti good">
+        <div class="d">STEP 3 · WEEK 2</div>
+        <div class="dot"></div>
+        <div class="t">Upgrade DBR &amp; doublecheck to 3-skeptic fresh verifier</div>
+      </div>
+      <div class="ti good">
+        <div class="d">STEP 4 · ONGOING</div>
+        <div class="dot"></div>
+        <div class="t">Enforce git worktree isolation &amp; skill-graph density audits</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 8: IMPLEMENTATION PLAN & ONE-SHOT BUILDER PROMPT -->
+  <section class="sec" id="sec-impl-plan">
+    <div class="sec-h">
+      <h2>08 · Implementation Plan: Exact Setup &amp; One-Shot Builder Prompt for Your Copilot</h2>
+      <span class="note">END-TO-END WORKSPACE WIRING · COPY-PASTE BUILDER PROMPT · VERIFICATION</span>
+    </div>
+
+    <p style="margin:0 0 12px;color:var(--ink-2)">Below is the complete, step-by-step implementation plan tailored to your exact directory topology (<code>C:\workspace\your-workspace\copilot-skills-repo</code>, <code>C:\workspace\your-workspace\skills</code> junction, <code>~/.copilot/skills</code>, and <code>~/.copilot/extensions</code>), followed by the <b>exact copy-paste prompt</b> you can give to your Copilot CLI session to build, wire, test, and verify the entire stack automatically.</p>
+
+    <!-- TARGET FILE TOPOLOGY TABLE -->
+    <div class="matrix">
+      <table>
+        <thead>
+          <tr>
+            <th>Artifact</th>
+            <th>Canonical Source Path (Git-Tracked)</th>
+            <th>Live Runtime Path (Copilot CLI)</th>
+            <th>Purpose</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th>1. Thin Skill Trigger</th>
+            <td><code>C:\workspace\your-workspace\copilot-skills-repo\diamond-workflow\SKILL.md</code></td>
+            <td>Junction: <code>~/.copilot\skills\diamond-workflow</code> → <code>C:\workspace\your-workspace\skills\diamond-workflow</code></td>
+            <td>Registers <code>/diamond-workflow</code> (`user-invocable: true`); authorizes <code>run_dynamic_workflow</code> or routes MCP tasks to SQLite waves.</td>
+          </tr>
+          <tr>
+            <th>2. Coalesced Spec Table</th>
+            <td><code>C:\workspace\your-workspace\copilot-skills-repo\diamond-workflow\specs\graph-specs.md</code></td>
+            <td>Same (via skill directory junction)</td>
+            <td>Holds all 6 Kopadze specs (`route-audit`, `research-desk`, `content-brief`, `gtm-kit`, `refactor-sweep`, `discovery-loop`).</td>
+          </tr>
+          <tr>
+            <th>3. Testable Workflow Body</th>
+            <td><code>C:\workspace\your-workspace\copilot-skills-repo\diamond-workflow\extension\workflow.mjs</code></td>
+            <td>Copy: <code>~/.copilot\extensions\diamond-workflow\workflow.mjs</code></td>
+            <td>Pure JS 3-topology state machine (`diamond`, `double-diamond`, `cyclic-loop`), `null` count guard, and 3-skeptic verifier.</td>
+          </tr>
+          <tr>
+            <th>4. SDK Extension Entrypoint</th>
+            <td><code>C:\workspace\your-workspace\copilot-skills-repo\diamond-workflow\extension\extension.mjs</code></td>
+            <td>Copy: <code>~/.copilot\extensions\diamond-workflow\extension.mjs</code></td>
+            <td>Calls <code>defineWorkflow</code> + <code>joinSession({ workflows, hooks })</code> (includes frozen-test &amp; citation-gate hooks).</td>
+          </tr>
+          <tr>
+            <th>5. Offline Mock Test Suite</th>
+            <td><code>C:\workspace\your-workspace\copilot-skills-repo\diamond-workflow\extension\workflow.test.mjs</code></td>
+            <td>Run in source folder via <code>node --test</code></td>
+            <td>Tests all 3 topologies, count guard, 3-skeptic majority vote, and <code>ctx.pause</code> replay in &lt;100ms with 0 AI credits.</td>
+          </tr>
+          <tr>
+            <th>6. Agent Routing Pointer</th>
+            <td><code>C:\workspace\your-workspace\copilot-skills-repo\agents\vijay-agent.agent.md</code> (line 45)</td>
+            <td>Hardlinked/symlinked to <code>~/.copilot/agents/vijay-agent.agent.md</code></td>
+            <td>1-line rule routing repeatable multi-angle/sweep/loop jobs to <code>diamond-workflow</code> + SQLite count guard check.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 4-PHASE SETUP SEQUENCE -->
+    <div class="seq" style="grid-template-columns:repeat(4,1fr);margin-top:14px">
+      <div class="sq">
+        <div class="n">PHASE 01 · SCAFFOLD</div>
+        <div class="t">Create Skill &amp; Specs</div>
+        <p>Create <code>diamond-workflow\SKILL.md</code> and <code>specs\graph-specs.md</code> in <code>copilot-skills-repo</code>; validate with <code>_shared\validate_skills.py</code>.</p>
+      </div>
+      <div class="sq">
+        <div class="n">PHASE 02 · ENGINE</div>
+        <div class="t">Write .mjs + Hooks</div>
+        <p>Write <code>workflow.mjs</code>, <code>extension.mjs</code>, and <code>workflow.test.mjs</code>; run <code>node --check</code> and <code>node --test</code> offline.</p>
+      </div>
+      <div class="sq">
+        <div class="n">PHASE 03 · WIRE</div>
+        <div class="t">Junction &amp; Deploy</div>
+        <p>Create the junction in <code>~/.copilot/skills/</code>, copy <code>extension.mjs</code> + <code>workflow.mjs</code> to <code>~/.copilot/extensions/diamond-workflow/</code>, update <code>vijay-agent.agent.md</code>.</p>
+      </div>
+      <div class="sq">
+        <div class="n">PHASE 04 · VERIFY</div>
+        <div class="t">Reload &amp; Smoke-Test</div>
+        <p>Call <code>extensions_reload</code> (or start <code>copilot --experimental</code>) and run <code>dynamic_workflows_manage(list)</code> to confirm <code>diamond-engine</code> is live.</p>
+      </div>
+    </div>
+
+    <!-- EXACT POWER-SHELL COMMANDS FOR MANUAL OR AUTOMATED WIRING -->
+    <div class="code-head" style="margin-top:16px">
+      <div>Phase 3 &amp; 4 Verification Commands (PowerShell)</div>
+      <span>Junction Creation · Skill Validator · Offline Unit Test</span>
+    </div>
+    <pre># 1. Create directory structure in copilot-skills-repo and ~/.copilot/extensions
+New-Item -ItemType Directory -Force -Path "C:\workspace\your-workspace\copilot-skills-repo\diamond-workflow\specs" | Out-Null
+New-Item -ItemType Directory -Force -Path "C:\workspace\your-workspace\copilot-skills-repo\diamond-workflow\extension" | Out-Null
+New-Item -ItemType Directory -Force -Path "$HOME\.copilot\extensions\diamond-workflow" | Out-Null
+
+# 2. Junction ~/.copilot/skills/diamond-workflow -&gt; C:\workspace\your-workspace\skills\diamond-workflow
+if (-not (Test-Path "$HOME\.copilot\skills\diamond-workflow")) {
+  New-Item -ItemType Junction -Path "$HOME\.copilot\skills\diamond-workflow" `
+    -Target "C:\workspace\your-workspace\skills\diamond-workflow" | Out-Null
+}
+
+# 3. Sync extension files to ~/.copilot/extensions/diamond-workflow
+Copy-Item "C:\workspace\your-workspace\copilot-skills-repo\diamond-workflow\extension\*.mjs" `
+  "$HOME\.copilot\extensions\diamond-workflow\" -Force
+
+# 4. Run skill validator and offline workflow unit tests (0 tokens)
+python "C:\workspace\your-workspace\copilot-skills-repo\_shared\validate_skills.py"
+node --check "C:\workspace\your-workspace\copilot-skills-repo\diamond-workflow\extension\extension.mjs"
+node --check "C:\workspace\your-workspace\copilot-skills-repo\diamond-workflow\extension\workflow.mjs"
+node --test "C:\workspace\your-workspace\copilot-skills-repo\diamond-workflow\extension\workflow.test.mjs"</pre>
+
+    <!-- THE ONE-SHOT BUILDER PROMPT TO GIVE COPILOT -->
+    <div class="code-head" style="margin-top:16px;background:var(--live-bg);border-color:var(--live);color:var(--live)">
+      <div>Copy-Paste One-Shot Builder Prompt (Give This Directly to Your Copilot CLI)</div>
+      <span style="color:var(--live);font-weight:600">Builds, Wires, Tests &amp; Reloads Everything End-to-End</span>
+    </div>
+    <pre class="live-border">Implement the complete Kopadze Graph Engineering (`diamond-workflow`) stack in my workspace based on `C:\workspace\your-workspace\research\how-to-imbibe-and-create-agents-or-workflows-based.md`:
+
+1. Read `C:\workspace\your-workspace\research\how-to-imbibe-and-create-agents-or-workflows-based.md` (Sections 3.2, 6, and 7) and `~/.copilot\pkg\win32-x64\1.0.99-0\copilot-sdk\docs\workflows.md`.
+2. Create the skill in `C:\workspace\your-workspace\copilot-skills-repo\diamond-workflow\`:
+   - `SKILL.md` (`name: diamond-workflow`, `user-invocable: true`) acting as the Control Plane router: reads `specs/graph-specs.md`, routes MCP-bound work (`crm`, `mailbox`, `analytics`, `vault`) to session SQLite `todos` + `todo_deps` waves with an arithmetic count guard, and routes compute/repo/research graphs to `run_dynamic_workflow({ name: "diamond-engine", args })`.
+   - `specs/graph-specs.md` containing the coalesced 6-spec table (`route-audit`, `research-desk`, `content-brief`, `gtm-kit`, `refactor-sweep`, `discovery-loop`) with topology (`diamond` | `double-diamond` | `cyclic-loop`), fan-out unit, verifier lenses, default caps, and human gates.
+3. Create the persistent Copilot SDK workflow extension in `C:\workspace\your-workspace\copilot-skills-repo\diamond-workflow\extension\`:
+   - `workflow.mjs`: Export `diamondMetadata` and `runDiamondEngine(ctx)` implementing all 3 topologies (`diamond`, `double-diamond` with mid-flow `ctx.pause`, and `cyclic-loop` stopping after 2 consecutive empty rounds), unique worker `label`s, enforced JSON `schema`s, `agent: "Vijay Agent"` on workers, plain-code deduplication + `null` fan-in count guard inside `ctx.step`, optional fail-open System-1 triage via `http://127.0.0.1:8787/v1/decide` (`selectVerifierLensesViaElJev`), and fresh-context 3-skeptic majority-vote verification (`ctx.pipeline` + `ctx.parallel`).
+   - `extension.mjs`: Import `defineWorkflow, joinSession` from `@github/copilot-sdk/extension`, wrap `runDiamondEngine`, register ZERO tools (so `el_mds_decide` in `el-mds` never collides), add the `onPreToolUse` frozen-test/benchmark path guard on `edit|create|apply_patch` only (when `COPILOT_FREEZE_TESTS=1`, completely disjoint from `el-mds` which checks `task|run_dynamic_workflow`), add the `onSubagentStop` research citation gate, and call `await joinSession({ workflows: [diamondEngine], hooks })`.
+   - `workflow.test.mjs`: Write a `node:test` suite with a mock `ctx` (journal + checkpoints) verifying: (a) 2+ units run via `ctx.parallel` with unique labels, (b) `null` worker triggers the fan-in count guard when quorum fails, (c) 3-skeptic majority vote keeps `>=2/3` and drops `<2/3`, (d) `double-diamond` pauses at `approve-positioning-v1` and resumes without re-running Wave 1 agents, (e) `cyclic-loop` exits after 2 consecutive rounds with 0 new verified findings, and (f) hooks abstain (`undefined`) on `task`/`run_dynamic_workflow` so `el-mds` gating is untouched.
+4. Wire into `~/.copilot`:
+   - Create junction `~/.copilot\skills\diamond-workflow` -> `C:\workspace\your-workspace\skills\diamond-workflow`.
+   - Copy `extension.mjs` and `workflow.mjs` to `~/.copilot\extensions\diamond-workflow\`.
+   - Add the Fake-Edge Test + SQLite fan-in count guard + `/diamond-workflow` pointer to `C:\workspace\your-workspace\copilot-skills-repo\agents\vijay-agent.agent.md` (and `vijay-caveman.agent.md`).
+5. Validate:
+   - Run `python C:\workspace\your-workspace\copilot-skills-repo\_shared\validate_skills.py`.
+   - Run `node --check` on `extension.mjs` and `workflow.mjs`, then run `node --test C:\workspace\your-workspace\copilot-skills-repo\diamond-workflow\extension\workflow.test.mjs`.
+   - Call `extensions_reload` and `dynamic_workflows_manage({ operation: "list" })` to confirm `diamond-engine` is registered.</pre>
+
+    <!-- DAY-2 USAGE PROMPTS ONCE INSTALLED -->
+    <div class="code-head" style="margin-top:16px">
+      <div>Day-2 Usage: How You Invoke It After Setup (1-Line Prompts)</div>
+      <span>No More Copy-Pasting 6 Spec Blocks</span>
+    </div>
+    <pre># 1. Decision-Grade Research Desk (5 angles + 3-skeptic verifier + pause gate)
+/diamond-workflow spec=research-desk Pause before synthesis. Compare Azure Container Apps vs AKS vs App Service for GCC multi-tenant microservices.
+
+# 2. Route / Security Audit (1 worker per file + count guard)
+/diamond-workflow spec=route-audit Audit all route handlers under src/ for missing auth or input validation. Cap at 20 files.
+
+# 3. Double-Diamond Launch / Presales Kit (Research -> Positioning Doc -> Pause -> 3 Assets)
+/diamond-workflow spec=gtm-kit Build a presales workshop kit for GitHub Copilot Enterprise aimed at enterprise platform engineering leaders.
+
+# 4. Discovery Loop of Unknown Size (Stops automatically after 2 empty rounds)
+/diamond-workflow spec=discovery-loop Hunt C:\workspace\your-workspace\el-jev for unhandled promise rejections, race conditions, or dead code.
+
+# 5. MCP-Bound Account Sweep (Automatically routes to Mode B SQLite todos + parallel task waves)
+/diamond-workflow spec=research-desk Pull cloud usage movers, open pipeline milestones, and meeting signals across my top 6 enterprise accounts.</pre>
+  </section>
+
+  <!-- COLOPHON & FOOTNOTES -->
+  <footer class="colophon" id="sec-sources">
+    <div><b>Method &amp; Confidence Assessment:</b> Orchestrated across 11 specialized <code>research</code> subagent dispatches. Primary sources verified at pinned git commit SHAs and live fxtwitter/syndication payloads (including Image 5 <code>HN_0W-CXIAAndeR.jpg</code> for the exact copy-paste workflow prompt). Anecdotal figures in Kopadze's article (e.g., Bun rewrite spend/duration) are noted as unverified author claims. Companion Markdown report saved at <code>C:\workspace\your-workspace\research\how-to-imbibe-and-create-agents-or-workflows-based.md</code>.</div>
+    <ol>
+      <li id="fn1"><a href="https://github.com/zeuikli/cc-workspace-docs/blob/4e1a8e46576d3c2350fa0cf8e4a035a45e1a03ad/docs/research/tweets/2026-07-24-%40AnatoliKopadze-314331.md#L1-L505">zeuikli/cc-workspace-docs:docs/research/tweets/2026-07-24-AnatoliKopadze-314331.md:1-505</a> (commit <code>4e1a8e46</code>) — Full archive of Anatoli Kopadze, <i>“Graph Engineering explained: what it is, when to use it and when not to”</i> (<a href="https://x.com/AnatoliKopadze/status/2080668775796314331">x.com/AnatoliKopadze/status/2080668775796314331</a>, 2026-07-24).</li>
+      <li id="fn2"><a href="https://github.com/zeuikli/cc-workspace-docs/blob/4e1a8e46576d3c2350fa0cf8e4a035a45e1a03ad/docs/research/tweets/2026-06-20-%40AnatoliKopadze-822149.md#L47-L166">zeuikli/cc-workspace-docs:docs/research/tweets/2026-06-20-AnatoliKopadze-822149.md:47-L166</a> (commit <code>4e1a8e46</code>) — Archive of Anatoli Kopadze, <i>“Loops explained: Claude, GPT, Mira and what actually works”</i> (2026-06-20).</li>
+      <li id="fn3"><a href="https://github.com/FlorianBruniaux/claude-code-ultimate-guide/blob/48c3fd705fc6063fec7dd331bb7af0308f386fd9/guide/core/agent-harness.md#L93-L106">FlorianBruniaux/claude-code-ultimate-guide:guide/core/agent-harness.md:93-106</a> (commit <code>48c3fd70</code>) &amp; <a href="https://www.puppygraph.com/learn/graph-engineering">PuppyGraph: Graph Engineering</a> — Execution graphs vs. knowledge graphs and Loop/Graph/Harness/Orchestration layers.</li>
+      <li id="fn4"><a href="https://github.com/agenticnotetaking/arscontexta/blob/2acfd5cc4473c4d06c46be63df748e77e00e2746/skill-sources/graph/SKILL.md#L1-L340">agenticnotetaking/arscontexta:skill-sources/graph/SKILL.md:1-340</a> (commit <code>2acfd5cc</code>) — Skill graph health metrics (density <code>0.02–0.06</code>, open triangles, bridges, clusters, hubs).</li>
+      <li id="fn5"><a href="https://github.com/github/copilot-sdk/blob/b96cd2b54f7eb87458fd50f485a751c712e88f62/nodejs/src/workflow.ts#L160-L578">github/copilot-sdk:nodejs/src/workflow.ts:160-578</a> &amp; <a href="https://github.com/github/copilot-sdk/blob/b96cd2b54f7eb87458fd50f485a751c712e88f62/nodejs/src/types.ts#L1558-L1987">nodejs/src/types.ts:1558-1987</a> (commit <code>b96cd2b5</code>) — Official Copilot SDK <code>defineWorkflow</code>, <code>WorkflowContext</code>, and <code>SessionHooks</code> definitions (local <code>1.0.99-0\copilot-sdk\workflow.d.ts:1-367</code>).</li>
+      <li id="fn6"><a href="https://github.com/github/copilot-sdk/blob/b96cd2b54f7eb87458fd50f485a751c712e88f62/nodejs/docs/workflows.md#L5-L261">github/copilot-sdk:nodejs/docs/workflows.md:5-261</a> &amp; <a href="https://github.com/github/copilot-sdk/blob/b96cd2b54f7eb87458fd50f485a751c712e88f62/nodejs/docs/agent-author.md#L114-L246">nodejs/docs/agent-author.md:114-246</a> (commit <code>b96cd2b5</code>) — Official SDK documentation for <code>ctx.agent</code>, <code>ctx.parallel</code>, <code>ctx.pipeline</code>, <code>ctx.step</code>, <code>ctx.pause</code>, and hooks.</li>
+      <li id="fn7"><code>~/.copilot\settings.json:167-245</code> &amp; <code>C:\workspace\your-workspace\build\TeamBrain\_tools\obsidian.py:5-123</code> (commit <code>5f4140cd</code>) — Subagent model routing and TeamBrain facet-to-hub graph projection.</li>
+      <li id="fn8"><code>C:\workspace\your-workspace\long-term-memory\wiki\vault_mcp.py:257-399,696-720</code> (commit <code>e89946f923fead8bbc63f9537f352d9d0272dfc6</code>) — <code>vault_read(hops=1)</code> progressive disclosure with <code>NEIGHBOUR_CHAR_CAP = 2000</code>.</li>
+      <li id="fn9"><code>~/.copilot/installed-plugins/agency/triage-team/skills/review/SKILL.md:55-75,513-547</code> (v0.1.1) &amp; <code>~/.copilot/installed-plugins/agency-playground/dev-team/agents/coordinator.md:203-362</code> (v0.5.0).</li>
+      <li id="fn11"><a href="https://arxiv.org/html/2608.21156v2">arXiv:2608.21156v2</a> (<i>“Graph Engineering in the Era of LLM Agents”</i>) &amp; <a href="https://arxiv.org/abs/2607.27578">arXiv:2607.27578</a> (<i>“What makes prompts a graph”</i>).</li>
+      <li id="fn14"><a href="https://github.com/m365-core/spark-claude-plugins/blob/549aa5ae5aab7baaec8e9ac6745fe428fac02134/plugins/skill-graph/skills/create-skill-graph/SKILL.md#L39-L225">m365-core/spark-claude-plugins:plugins/skill-graph/skills/create-skill-graph/SKILL.md:39-225</a> (commit <code>549aa5ae</code>) — 20–80 line concept nodes, frontmatter schema, and 8 quality checks.</li>
+      <li id="fn17"><a href="https://github.com/quanghle/bd-sync/blob/f90fad20e39b4bbbaab392952e5af5a7708cdbd8/.github/extensions/plan-implement-review/extension.mjs#L976-L1008">quanghle/bd-sync:.github/extensions/plan-implement-review/extension.mjs:10-240,681-742,976-1008,1148-1363</a> (commit <code>f90fad20</code>) — Production <code>defineWorkflow</code> graph with critic loops, parallel reviewers, and <code>ctx.pipeline</code> refutation.</li>
+      <li id="fn18"><a href="https://github.com/xavierxmorris/copilot-dynamic-workflows-guide/blob/2a231a4daf4b759faa76930b8132b90f563d9def/.github/extensions/delivery-readiness/workflow.mjs#L4-L259">xavierxmorris/copilot-dynamic-workflows-guide:.github/extensions/delivery-readiness/workflow.mjs:4-259</a> (commit <code>2a231a4d</code>) — Reference implementation of <code>ctx.step</code>, <code>{ volatile: true }</code> snapshots, <code>ctx.parallel</code> count guard, and <code>ctx.pause</code>.</li>
+      <li id="fn19"><a href="https://github.com/msftnadavbh/workflows/blob/05460418bace92aca7129beb7ce4ac49f8c9a220/demo/core.ts#L423-L691">msftnadavbh/workflows:demo/core.ts:423-691</a> &amp; <a href="https://github.com/msftnadavbh/workflows/blob/05460418bace92aca7129beb7ce4ac49f8c9a220/native/extension.ts#L13-L135">native/extension.ts:13-135</a> (commit <code>05460418</code>) — <code>launch-rescue</code> workflow with pinned models, custom <code>.agent.md</code> profiles, and SDK resume loop.</li>
+      <li id="fn20"><code>C:\workspace\your-workspace\el-jev\.github\extensions\el-mds\extension.mjs:1-8,183-296</code> (commit <code>bed53d1e314c273f4a565810c29ecd8ef61f5901</code>) — Turn-budget injection and <code>fast_direct</code> tool denial hook.</li>
+      <li id="fn21"><a href="https://github.com/vijaycinn/copilot-skills/blob/9b2b56866e20545be36a0a917ac70073a1ea6ca4/sanitize/scripts/sanitize.py#L517-L643">vijaycinn/copilot-skills:sanitize/scripts/sanitize.py:517-643</a> (commit <code>9b2b5686</code>) — Fail-closed <code>preToolUse</code> git commit/push sanitizer.</li>
+      <li id="fn22"><a href="https://github.com/vijaycinn/copilot-skills/blob/fc2da95fbb1b1911a9f906320c2e0e81889db801/agents/vijay-agent.agent.md#L32-L95">vijaycinn/copilot-skills:agents/vijay-agent.agent.md:32-95</a> (commit <code>fc2da95f</code>) — Lead analyst fan-out rules, 5-part delegation contract, and <code>/fleet</code> SQLite DAG waves.</li>
+      <li id="fn23"><a href="https://github.com/vijaycinn/copilot-skills/blob/be2c8f9133c4624ca4c44ed8bb2a34736a785a93/agents/demo-orchestrator.agent.md#L18-L111">vijaycinn/copilot-skills:agents/demo-orchestrator.agent.md:18-111</a> (commit <code>be2c8f91</code>) &amp; <a href="https://github.com/vijaycinn/copilot-skills/blob/ab3d04eb72eab8def467ceb824fd82b7481eb142/demo-orchestrator/stacks/stacks.md#L1-L60">stacks.md:1-60</a> (commit <code>ab3d04eb</code>).</li>
+      <li id="fn25"><a href="https://github.com/vijaycinn/copilot-skills/blob/6f31897022f74fb62e7483e6b9466873fa5786a4/draft-business-review/SKILL.md#L163-L213">vijaycinn/copilot-skills:draft-business-review/SKILL.md:163-213</a> (commit <code>6f318970</code>) &amp; <a href="https://github.com/vijaycinn/copilot-skills/blob/c9ece03a9373e23be8831a964448487424391972/draft-business-review/agents/m365-collector.md#L52-L123">m365-collector.md:52-123</a> (commit <code>c9ece03a</code>).</li>
+      <li id="fn27"><a href="https://github.com/vijaycinn/copilot-skills/blob/6f31897022f74fb62e7483e6b9466873fa5786a4/doublecheck/SKILL.md#L237-L387">vijaycinn/copilot-skills:doublecheck/SKILL.md:237-387</a> (commit <code>6f318970</code>) — 3-layer verification pipeline.</li>
+      <li id="fn28"><a href="https://github.com/vijaycinn/copilot-skills/blob/6f31897022f74fb62e7483e6b9466873fa5786a4/autoresearch/SKILL.md#L149-L214">vijaycinn/copilot-skills:autoresearch/SKILL.md:149-214</a> (commit <code>6f318970</code>) — Autonomous metric-anchored experiment loop.</li>
+      <li id="fn29"><a href="https://github.com/github/gh-aw/blob/ffc93b2f3118eae982d395381bdcd81cf8e1fc67/.github/extensions/smoke-copilot-dynamic-workflow/workflow.mjs#L1-L54">github/gh-aw:.github/extensions/smoke-copilot-dynamic-workflow/workflow.mjs:1-54</a> (commit <code>ffc93b2f</code>) &amp; <a href="https://github.com/jacygao/yakka/blob/aee67a5d3d0b014bb804987b548ebe2cec111690/.github/extensions/yakka/harness.mjs#L295-L398">jacygao/yakka:.github/extensions/yakka/harness.mjs:295-L398</a> (commit <code>aee67a5d</code>).</li>
+    </ol>
+  </footer>
+
+</main>
+</body>
+</html>

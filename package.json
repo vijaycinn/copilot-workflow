@@ -1,0 +1,19 @@
+{
+  "name": "copilot-workflow",
+  "version": "1.0.0",
+  "description": "Graph Engineering & Diamond Workflows for the GitHub Copilot CLI Agent Harness (@github/copilot-sdk/extension)",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vijaycinn/copilot-workflow.git"
+  },
+  "scripts": {
+    "test": "node --test test/workflow.test.mjs",
+    "eval": "node evals/run-evals.mjs",
+    "check": "npm test && npm run eval"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
